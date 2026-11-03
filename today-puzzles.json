@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-03",
+  "set": 8,
+  "puzzles": {
+    "anime": {
+      "easy": 7,
+      "hard": 7,
+      "medium": 7
+    },
+    "drama": {
+      "easy": 7,
+      "hard": 7,
+      "medium": 7
+    },
+    "movie": {
+      "easy": 7,
+      "hard": 7,
+      "medium": 7
+    }
+  }
+}

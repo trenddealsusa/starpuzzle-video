@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StarPuzzle - Daily Character Puzzle</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, "Segoe UI", Arial, Helvetica, sans-serif; background: #ffffff; color: #1a1a1a; line-height: 1.6; padding: 16px; }
+.wrap { max-width: 640px; margin: 0 auto; }
+header { text-align: center; padding: 20px 10px 12px; border-bottom: 1px solid #e5e5e5; }
+header h1, header .game-title { font-size: 2em; letter-spacing: 1px; font-weight: bold; }
+header p { color: #666; font-size: 0.95em; margin-top: 4px; }
+.profile { text-align: center; padding: 16px 10px; border-bottom: 1px solid #e5e5e5; }
+.profile .email { font-weight: bold; font-size: 1.05em; word-break: break-all; }
+.profile .fantag { font-size: 1.15em; margin: 6px 0; }
+.profile .stageline { color: #666; font-size: 0.95em; }
+.guestnote { color: #b45309; font-size: 0.9em; margin-top: 8px; }
+.syncnote { color: #b45309; font-size: 0.9em; margin-top: 8px; min-height: 1.2em; }
+.stats { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 16px 0; }
+.stat { background: #f7f7f7; border: 1px solid #e0e0e0; border-radius: 10px; padding: 10px 16px; text-align: center; min-width: 105px; }
+.stat b { display: block; font-size: 1.3em; }
+.stat span { font-size: 0.85em; color: #666; }
+.howto { background: #f7f7f7; border: 1px solid #e0e0e0; border-radius: 10px; padding: 14px 16px; margin: 16px 0; }
+.howto h2 { font-size: 1.1em; margin-bottom: 6px; }
+.howto li { margin-left: 18px; font-size: 0.95em; }
+.date-line { text-align: center; color: #666; margin: 8px 0 2px; }
+.nextline { text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px; }
+.lockbox { text-align: center; background: #f7f7f7; border: 1px solid #e0e0e0; border-radius: 12px; padding: 28px 16px; margin: 16px 0; }
+.lockbox .big { font-size: 2.1em; font-weight: bold; letter-spacing: 1px; }
+.lockbox p { color: #666; margin-top: 6px; }
+.catch { font-size: 1.15em; font-weight: bold; margin: 18px 0 4px; }
+.card { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; margin: 12px 0; }
+.card.solved { border-color: #538d4e; background: #f0f7ef; }
+.card.locked { opacity: 0.65; }
+.cat { display: inline-block; background: #1a1a1a; color: #fff; font-weight: bold; font-size: 0.8em; padding: 3px 10px; border-radius: 20px; letter-spacing: 1px; }
+.diff { display: inline-block; font-weight: bold; font-size: 0.8em; padding: 3px 10px; border-radius: 20px; letter-spacing: 1px; color: #fff; margin-left: 6px; }
+.diff-easy { background: #538d4e; }
+.diff-medium { background: #d97706; }
+.diff-hard { background: #c0392b; }
+.card h2 { margin: 10px 0 4px; font-size: 1.3em; }
+.card .show { color: #666; font-size: 0.95em; margin-bottom: 12px; }
+.clue { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 10px 12px; margin: 8px 0; font-size: 0.95em; }
+.riddle { font-size: 1.8em; text-align: center; padding: 8px 0; letter-spacing: 6px; }
+.sil { font-style: italic; color: #555; background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 10px 12px; margin: 8px 0; font-size: 0.95em; }
+.lockednote { color: #888; font-size: 0.95em; margin-top: 8px; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+button { background: #538d4e; color: #fff; border: none; border-radius: 8px; padding: 11px 18px; font-weight: bold; cursor: pointer; font-size: 0.95em; }
+button.secondary { background: #e5e5e5; color: #1a1a1a; }
+button:disabled { opacity: 0.45; cursor: default; }
+input[type="text"] { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #bbb; background: #fff; color: #1a1a1a; font-size: 1em; margin: 6px 0; }
+.feedback { margin: 8px 0; font-weight: bold; min-height: 1.4em; }
+.feedback.ok { color: #538d4e; }
+.feedback.bad { color: #c0392b; }
+.solvedbox { background: #e8f5e9; border: 1px solid #538d4e; border-radius: 8px; padding: 12px; margin-top: 10px; }
+.solvedbox a { color: #2e7d32; }
+.bonusmsg { text-align: center; color: #538d4e; font-weight: bold; margin: 10px 0; min-height: 1.4em; }
+.sharebox { text-align: center; margin: 22px 0; }
+.sharebox button { font-size: 1.05em; padding: 12px 22px; }
+footer { text-align: center; color: #888; font-size: 0.85em; padding: 20px 10px; border-top: 1px solid #e5e5e5; margin-top: 24px; }
+footer a { color: #2e7d32; }
+.tabs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 16px 0 4px; }
+.tab { background: #e5e5e5; color: #1a1a1a; }
+.tab.active { background: #f5c542; color: #1a1a1a; }
+.howto video { display: block; margin: 10px auto; border-radius: 10px; background: #000; }
+.videocap { text-align: center; color: #666; font-size: 0.9em; margin: 4px 0 10px; }
+.demo { display: flex; gap: 14px; align-items: flex-start; margin: 12px 0; flex-wrap: wrap; }
+.phone { width: 160px; flex: 0 0 160px; border: 2px solid #1a1a1a; border-radius: 18px; padding: 10px; background: #0b1026; color: #fff; min-height: 200px; }
+.phone .screen { display: none; font-size: 0.85em; line-height: 1.5; }
+.phone .screen.on { display: block; }
+.phone .screen b { color: #f5c542; }
+.phone .screen .mockinput { background: #fff; color: #666; border-radius: 6px; padding: 6px 8px; margin: 6px 0; font-size: 0.85em; }
+.phone .screen .mockbtn { background: #538d4e; color: #fff; border-radius: 6px; padding: 6px 10px; display: inline-block; font-weight: bold; font-size: 0.85em; }
+.phone .screen .mockgoogle { background: #fff; color: #1a1a1a; border-radius: 6px; padding: 6px 10px; display: inline-block; font-weight: bold; font-size: 0.85em; }
+.demo-steps { flex: 1; min-width: 220px; list-style: none; }
+.demo-steps li { padding: 8px 10px; border-left: 3px solid transparent; margin: 4px 0; border-radius: 6px; font-size: 0.95em; }
+.demo-steps li.on { background: #fff8e1; border-left-color: #f5c542; font-weight: bold; }
+.rules { margin-top: 12px; }
+.rules li { margin-left: 18px; font-size: 0.95em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div class="game-title">StarPuzzle</div>
+<p>One day. Nine puzzles. Only true fans solve them.</p>
+</header>
+
+<div class="profile" id="profileBox"></div>
+
+<div class="stats">
+<div class="stat"><b id="points">0</b><span>Points</span></div>
+<div class="stat"><b id="stage">Sigma Rookie</b><span>Stage</span></div>
+<div class="stat"><b id="streak">0</b><span>Day Streak</span></div>
+<div class="stat"><b id="todayCount">0/9</b><span>Solved Today</span></div>
+</div>
+<p class="syncnote" id="syncMsg"></p>
+
+<div class="howto">
+<h2>How to Play</h2>
+<video src="https://cdn.jsdelivr.net/gh/trenddealsusa/starpuzzle-video@main/media-generation-starpuzzle-how-to-play-0-c75bcb4c-6315-482b-a247-29f3df00a7d0.mp4" controls preload="metadata" playsinline style="width:100%;max-width:560px"></video>
+<p class="videocap">Watch: what StarPuzzle is and how to play.</p>
+<div class="demo">
+<div class="phone" id="demoPhone">
+<div class="screen on"><b>Step 1: Pick a category</b><br><br>🎬 <b>Movie</b><br>🎭 Drama<br>🌸 Anime</div>
+<div class="screen"><b>Step 2: Read the clues</b><br><br>Clue 1: A hero in red and blue who swings between rooftops.<br><br>🕷️🕸️🏙️📷<br><br><i>Silhouette: lean figure, crouched on a rooftop edge.</i></div>
+<div class="screen"><b>Step 3: Type your guess</b><br><br><div class="mockinput">Type the character name...</div><span class="mockbtn">Submit guess</span><br><br><i>Or press Enter.</i></div>
+<div class="screen"><b>Step 4: Points</b><br><br>✅ Correct! <b>+1 point</b><br><br>❌ Wrong! <b>-2 points</b><br><br>Points never go below 0.</div>
+<div class="screen"><b>Step 5: Save your points</b><br><br><span class="mockgoogle">Sign in with Google</span><br><br>Your points are saved forever.<br><br>Guests can play, but points are not saved.</div>
+</div>
+<ol class="demo-steps" id="demoSteps">
+<li>Pick a category: Movie, Drama or Anime.</li>
+<li>Read Clue 1, the emoji riddle and the silhouette hint.</li>
+<li>Type the character name in the box and tap Submit guess (or press Enter).</li>
+<li>Correct answer: +1 point. Wrong answer: -2 points.</li>
+<li>Sign in with Google to save your points forever. Guests can play, but points are not saved.</li>
+</ol>
+</div>
+<ul class="rules">
+<li>New puzzles every day at 5:00 AM.</li>
+<li>Yesterday's puzzles stay playable until midnight.</li>
+<li>All 9 solved: +5 bonus points.</li>
+<li>Points never reset.</li>
+<li>Max 2 Google accounts per mobile.</li>
+</ul>
+</div>
+
+<p class="date-line" id="dateLine"></p>
+<p class="nextline" id="nextLine"></p>
+
+<div class="lockbox" id="lockBox" style="display:none">
+<div class="big" id="countdown">Next puzzle in 00:00:00</div>
+<p>New puzzles arrive at 5:00 AM. Come back then.</p>
+</div>
+
+<div class="tabs" id="tabs">
+<button class="tab active" data-filter="all">All 9</button>
+<button class="tab" data-filter="movie">Movie (3)</button>
+<button class="tab" data-filter="drama">Drama (3)</button>
+<button class="tab" data-filter="anime">Anime (3)</button>
+</div>
+
+<div id="cards"></div>
+<p class="bonusmsg" id="bonusMsg"></p>
+
+<div class="sharebox">
+<button id="shareBtn">Share my result</button>
+<p id="shareMsg" style="margin-top:8px;color:#538d4e;"></p>
+</div>
+
+<footer>
+<p>Fan-made puzzle game. Not connected to any show, studio or actor.</p>
+<p><a href="https://starpuzzleusa.blogspot.com/p/fan-badge.html">Get your Fan Award Badge</a> | <a href="https://starpuzzleusa.blogspot.com/p/fan-frame.html">Fan Frame</a></p>
+</footer>
+</div>
+
+<script>
+// StarPuzzle puzzle engine v3.1 - 9 puzzles a day, date-seeded, Firebase-backed points.
+// Puzzle day runs 05:00 to 24:00 in the visitor's LOCAL time. Between 00:00 and
+// 05:00 the cards stay locked and a countdown runs to 05:00, then the page reloads.
+// Points: correct guess +1, wrong guess -2, all 9 solved in a day +5 bonus.
+// Points live in Firestore (users/{uid}) when signed in with Google; guests play
+// with points saved only in this browser's localStorage.
+// One mobile, max 2 Google accounts for points. A 3rd Gmail on this device is
+// blocked from a points profile (device check in the Auth section below).
+
+// ---------- Firebase ----------
+// Real project: StarPuzzle (starpuzzle-c8e78), Spark free plan, Google sign-in on.
+// Firestore rules live in firestore.rules (apply them in the Firebase console).
+var FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCg8xGHxJCZbXFq6j_ho8gmUgmi1omjXVY",
+  authDomain: "starpuzzle-c8e78.firebaseapp.com",
+  projectId: "starpuzzle-c8e78",
+  storageBucket: "starpuzzle-c8e78.firebasestorage.app",
+  messagingSenderId: "308885073936",
+  appId: "1:308885073936:web:27d18674e88cec1bd6da95"
+};
+var FB = { ready: false, auth: null, db: null, user: null, docRef: null };
+try {
+  if (typeof firebase !== "undefined") {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    FB.auth = firebase.auth();
+    FB.db = firebase.firestore();
+    FB.ready = true;
+  }
+} catch (e) { FB.ready = false; }
+
+var PUZZLES = {
+  movie: {
+    easy: [
+      { char: "Peter Parker", show: "Spider-Man: Brand New Day", clues: ["Once sold photos of himself to a newspaper that called him a menace.", "Bitten on a school science trip, or so the old story goes.", "Swings between Queens rooftops in red and blue."], emoji: "🕷️🕸️🏙️📷", sil: "Lean figure, crouched on a rooftop edge, one arm raised, big white eye lenses on a full-face mask.", answers: ["peter parker", "spider-man", "spiderman", "spider man", "peter"] },
+      { char: "Woody", show: "Toy Story 5", clues: ["Has the word ANDY written on the sole of one boot.", "Once feared being replaced by a spaceman with a laser.", "A pull-string cowboy whose voice box says 'Reach for the sky!'"], emoji: "🤠🐴⭐👢", sil: "Cowboy hat, yellow checked shirt, star badge, lanky limbs, a pull-string ring on the back.", answers: ["woody", "sheriff woody"] },
+      { char: "Buzz Lightyear", show: "Toy Story 5", clues: ["Believed for a long time that he was a real space ranger, not a toy.", "His wrist communicator is a sticker that lights up.", "Falls with style, in a white and green space suit with a purple head cap."], emoji: "🚀👨‍🚀✨🛸", sil: "Bulky white space suit, purple hood, clear bubble helmet, wings folded at the back.", answers: ["buzz lightyear", "buzz"] },
+      { char: "Mario", show: "The Super Mario Galaxy Movie", clues: ["Once worked as a plumber in Brooklyn before jumping between worlds.", "His cap has a red M stitched on the front.", "Grows twice his size after eating a spotted red mushroom."], emoji: "🍄⭐👨‍🔧🐢", sil: "Short round figure in a red cap and blue overalls, thick moustache, one fist raised.", answers: ["mario", "super mario"] },
+      { char: "Michael Jackson", show: "Michael", clues: ["Kept a pet chimpanzee named Bubbles at his ranch.", "His single white glove sparkled under stage lights.", "Moonwalked across a stage in a red jacket with zips."], emoji: "🧤🌙🎤🕺", sil: "Slim figure in a sequinned jacket, fedora tilted low, one gloved hand raised, mid-spin.", answers: ["michael jackson", "michael"] },
+      { char: "Tony Stark", show: "Iron Man", clues: ["Built his first suit in a cave using a box of scraps.", "His chest glows with a small circular reactor that keeps him alive.", "A billionaire inventor who flies in a red and gold suit of armour."], emoji: "🤖🔴🟡⚡", sil: "Man in a red and gold metal suit, glowing circle in the chest, one palm raised with a light beam.", answers: ["iron man", "tony stark", "ironman"] },
+      { char: "Bruce Wayne", show: "The Dark Knight", clues: ["Fell into a well as a boy and was swarmed by bats.", "Keeps a whole cave of gadgets under his family mansion.", "A billionaire who dresses as a bat and fights crime in a city called Gotham."], emoji: "🦇🌃🚗🖤", sil: "Dark caped figure with pointed ears on the cowl, standing on a rooftop above a city skyline.", answers: ["batman", "bruce wayne"] },
+      { char: "Jack Dawson", show: "Titanic", clues: ["Won his ticket to board the ship in a lucky hand of poker.", "Sketched a portrait of his companion wearing only a blue necklace.", "A poor artist who danced below deck and stood at the bow shouting he was king of the world."], emoji: "🚢🎨🌊💙", sil: "Young man with windswept hair, arms spread wide at the bow of a great ship.", answers: ["jack dawson"] },
+      { char: "Jack Sparrow", show: "Pirates of the Caribbean", clues: ["Once traded a compass that points to what you want most for a bottle of rum.", "Escaped a deserted island by tying sea turtles together.", "A pirate captain with a tricorn hat, kohl-rimmed eyes and a drunken swagger."], emoji: "🏴‍☠️🥃🧭⚓", sil: "Man in a tricorn hat and long coat, beaded hair, one hand on a sword, standing on a ship's deck.", answers: ["jack sparrow", "captain jack sparrow"] },
+      { char: "Harry Potter", show: "Harry Potter", clues: ["Lived in a cupboard under the stairs until his eleventh birthday.", "His wand has a phoenix feather core, the twin of his enemy's.", "A boy wizard with a lightning scar and round glasses."], emoji: "⚡👓🧙‍♂️🦉", sil: "Boy in black robes and round glasses, a lightning scar on his forehead, holding a wand.", answers: ["harry potter", "harry"] },
+      { char: "Indiana Jones", show: "Raiders of the Lost Ark", clues: ["Taught archaeology at a university between adventures.", "Keeps a battered fedora and a whip by his side.", "Once swapped a golden idol for a bag of sand."], emoji: "🎩🐍🗺️🏺", sil: "Man in a brown fedora and leather jacket, whip coiled at his hip, standing in a jungle temple doorway.", answers: ["indiana jones", "indy", "dr jones"] },
+      { char: "Darth Vader", show: "Star Wars", clues: ["Breathes through a black mask after a duel on a lava planet left him burned.", "Once cut off his own son's hand in a duel.", "A tall figure in black armour who serves a hooded emperor."], emoji: "🖤🌑⚔️😤", sil: "Tall figure in black armour and a flowing cape, a wide helmet with a triangular grille, one hand raised.", answers: ["darth vader", "vader", "anakin skywalker"] },
+      { char: "James Bond", show: "Skyfall", clues: ["Works for a spymaster known only by a single letter.", "Drives an Aston Martin fitted with hidden gadgets.", "Orders his vodka martini shaken, not stirred."], emoji: "🍸🔫🚗🎩", sil: "Man in a sharp black tuxedo, holding a small pistol, standing beside a silver sports car.", answers: ["james bond", "bond", "007"] },
+      { char: "Elsa", show: "Frozen", clues: ["Her glove hid a power she was told to conceal since childhood.", "Built a palace of ice on a mountain after running from her own coronation.", "Sings of letting go as snow swirls around her."], emoji: "❄️👑🏰🎶", sil: "Woman in a sparkling blue gown with a long pale braid, one hand raised, snowflakes swirling around her.", answers: ["elsa", "queen elsa"] },
+      { char: "Shrek", show: "Shrek", clues: ["Lives alone in a swamp until fairy-tale creatures are dumped on his land.", "Rescued a princess from a tower guarded by a fire-breathing dragon.", "A green ogre who loves his mud bath and his quiet."], emoji: "💚🧅🏰🐉", sil: "Big green figure with two small trumpet ears, a brown vest, standing outside a muddy swamp cottage.", answers: ["shrek"] },
+      { char: "Yoda", show: "Star Wars: The Empire Strikes Back", clues: ["Speaks in sentences with the words in a strange order.", "Trained warriors for 900 years on a swamp planet.", "A tiny green master who lifts a crashed ship with his mind."], emoji: "🟢👽⚔️🌿", sil: "Small green figure with long pointed ears, leaning on a gnarled cane, a brown robe.", answers: ["yoda", "master yoda"] },
+      { char: "Steve Rogers", show: "Captain America: The First Avenger", clues: ["A skinny soldier from Brooklyn became super strong after a secret serum.", "Woke up 70 years after crashing a plane into the ice.", "Carries a round shield with a white star on it."], emoji: "🛡️🇺🇸⭐💪", sil: "Tall man in a blue suit with a white star on the chest, a round red and white shield on his arm.", answers: ["steve rogers", "captain america", "steve"] },
+      { char: "Dorothy Gale", show: "The Wizard of Oz", clues: ["Her little dog was carried off by a tornado in Kansas.", "Followed a yellow brick road with a scarecrow, a tin man and a lion.", "Clicked her ruby slippers together three times to go home."], emoji: "👠🌪️🐕🌈", sil: "Girl in a blue checked dress and white blouse, red shoes, a small basket in one hand.", answers: ["dorothy gale", "dorothy"] },
+      { char: "Simba", show: "The Lion King", clues: ["A cub raised by a meerkat and a warthog after his father's death.", "Was held up as a newborn on a rocky outcrop as the animals bowed.", "Returned as an adult to reclaim his birthright from his scarred uncle."], emoji: "🦁👑🌅🐾", sil: "Young golden cub with a red mane, standing on a tall rock at sunrise, a mandrill beside him.", answers: ["simba"] },
+      { char: "The Joker", show: "The Dark Knight", clues: ["Tells different stories about how he got his scars every time he is asked.", "Burned a mountain of stolen money just to prove a point.", "Paints his face white and smiles while chaos spreads through the city."], emoji: "🃏😂💰🔪", sil: "Man with white face paint, smeared red lips and green hair, in a purple suit, holding a playing card.", answers: ["the joker", "joker"] }
+    ],
+    medium: [
+      { char: "Gru", show: "Minions & Monsters", clues: ["Stole the moon once, then gave it back.", "His black-and-grey striped scarf never seems to come off.", "A bald ex-villain who now raises three adopted girls with an army of small yellow helpers."], emoji: "🌙💛👨‍👧‍👧🔫", sil: "Tall, long-nosed figure in a black coat and striped scarf, hands clasped behind his back.", answers: ["gru", "felonius gru"] },
+      { char: "Moana", show: "Moana", clues: ["Was chosen by the ocean as a toddler when it handed her a glowing green stone.", "Her grandmother kept a tattooed stingray spirit and a stash of coconuts.", "Sailed beyond the reef to return a heart to a lava goddess."], emoji: "🌊⛵🐚🌺", sil: "Young woman with long curly hair, a red patterned top and a woven skirt, standing at a canoe's prow.", answers: ["moana"] },
+      { char: "Maui", show: "Moana", clues: ["His tattoos tell his life story, including a tiny version of himself that talks back.", "Stole the heart of an island goddess with a magical fish hook.", "A giant demigod who can turn into a hawk."], emoji: "🪝🦅💪🌋", sil: "Huge muscular figure covered in animated tattoos, long curly hair, a giant fish hook over one shoulder.", answers: ["maui"] },
+      { char: "Judy Hopps", show: "Zootopia 2", clues: ["Was the first rabbit officer in her city's police department.", "Grew up on a carrot farm with 275 brothers and sisters.", "Writes parking tickets before solving a case about missing mammals."], emoji: "🐰🥕🚔⭐", sil: "Small grey rabbit in a blue police uniform, long ears upright, badge on her chest.", answers: ["judy hopps", "judy"] },
+      { char: "Nick Wilde", show: "Zootopia 2", clues: ["Once sold popsicles made from giant elephant-sized treats to make a profit.", "Was bullied as a young fox for wanting to join the scouts.", "A sly red fox who sells things on the street and hates being called cute."], emoji: "🦊🍦😏👔", sil: "Slim red fox in a green shirt and tie, leaning casually, tail curled behind him.", answers: ["nick wilde", "nick"] },
+      { char: "Grogu", show: "Star Wars: The Mandalorian and Grogu", clues: ["Is fifty years old but still a toddler by his species' standards.", "Once lifted a huge mudhorn with a wave of his tiny hand.", "A green foundling with big ears who loves soup and a floating metal cradle."], emoji: "👶🟢🥣✨", sil: "Tiny green figure with huge ears, wrapped in a brown robe, sitting in a floating pod.", answers: ["grogu", "baby yoda", "the child"] },
+      { char: "Elphaba", show: "Wicked: For Good", clues: ["The animals at her school were losing their power of speech, and she was the only student who fought for them.", "Her best friend once gave her a pointed black hat as a joke gift.", "A green-skinned witch who defies gravity on a broomstick."], emoji: "🧹💚🎓✨", sil: "Tall figure in a black dress and pointed hat, green skin, arms outstretched on a broomstick against the sky.", answers: ["elphaba", "elphaba thropp"] },
+      { char: "Glinda", show: "Wicked: For Good", clues: ["Arrived at school by bubble and was voted the most popular student.", "Once tried to teach her green roommate how to be popular.", "The good witch in a pink gown and a sparkling crown."], emoji: "🫧👑💗✨", sil: "Blonde figure in a sparkling pink ballgown, crown on her head, floating down in a bubble.", answers: ["glinda", "glinda uppland", "galinda"] },
+      { char: "Rocky Balboa", show: "Rocky", clues: ["Trained by chasing chickens and punching frozen meat in a cold store.", "His trainer once threw a towel into the ring to save him.", "A club fighter from Philadelphia who went the distance with the world champion."], emoji: "🥊🥩🐔🏆", sil: "Boxer in grey sweats, arms raised, running up stone steps with a city behind him.", answers: ["rocky balboa", "rocky"] },
+      { char: "Forrest Gump", show: "Forrest Gump", clues: ["Ran across America for three years, gathering followers who never knew why.", "His leg braces fell off as he ran from school bullies.", "A simple man with a box of chocolates who witnessed history."], emoji: "🍫🏃‍♂️🦐🪶", sil: "Man in a white shirt and khaki suit, sitting on a bench with a suitcase, a feather drifting past.", answers: ["forrest gump", "forrest"] },
+      { char: "Hermione Granger", show: "Harry Potter and the Philosopher's Stone", clues: ["The Sorting Hat debated for nearly four minutes before placing her.", "Her parents are dentists who had no idea magic existed.", "A clever witch with bushy hair who knows every spell in the textbook."], emoji: "📚🧙‍♀️✨🦁", sil: "Girl with a mass of bushy brown hair, a school robe, a stack of heavy books in her arms.", answers: ["hermione granger", "hermione"] },
+      { char: "Ron Weasley", show: "Harry Potter and the Chamber of Secrets", clues: ["Fears spiders because his brothers once turned his teddy bear into one.", "His wand was held together with tape after it snapped in a flying car crash.", "A red-haired boy who plays chess better than anyone in his family."], emoji: "♟️🚗🕷️🧡", sil: "Tall red-haired boy in a worn school robe, holding a chess piece, a rat peeking from his pocket.", answers: ["ron weasley", "ron"] },
+      { char: "Gandalf", show: "The Lord of the Rings: The Fellowship of the Ring", clues: ["Fell fighting a fire demon in a deep mine and returned in white robes.", "Arrived at a birthday party with a cart full of fireworks.", "A grey-bearded wizard with a tall pointed hat and a wooden staff."], emoji: "🧙‍♂️🔥🎆🗡️", sil: "Tall old man with a long grey beard, a wide-brimmed pointed hat, a staff topped with a crystal.", answers: ["gandalf", "gandalf the grey"] },
+      { char: "Frodo Baggins", show: "The Lord of the Rings: The Fellowship of the Ring", clues: ["Was stabbed by a blade on a windy hilltop and saved by an elf princess.", "Carried a small golden band on a chain for months without letting go of it.", "A small hobbit from a quiet village who left home with his gardener friend."], emoji: "🧝‍♂️🗡️🏡🌋", sil: "Small figure with curly dark hair and bare feet, a cloak clasped with a leaf, a glowing chain at his neck.", answers: ["frodo baggins", "frodo"] },
+      { char: "John McClane", show: "Die Hard", clues: ["Tied himself to a fire hose and swung off an exploding rooftop.", "Walked barefoot over broken glass to reach the hostages.", "An off-duty New York cop who fights terrorists in a Los Angeles tower on Christmas Eve."], emoji: "🎄🏢🔫👮‍♂️", sil: "Man in a dirty white vest, barefoot, holding a machine gun, standing in a glass office tower.", answers: ["john mcclane", "mcclane"] },
+      { char: "Ellen Ripley", show: "Alien", clues: ["Slept in a space pod for 57 years before being found drifting.", "Shaved her head and lifted weights while locked in a prison colony.", "A warrant officer who fought an acid-blooded creature with a power loader."], emoji: "🚀👽🐱🔫", sil: "Woman in a grey vest and cap, a flamethrower slung over her shoulder, a small cat at her feet.", answers: ["ellen ripley", "ripley"] },
+      { char: "Marty McFly", show: "Back to the Future", clues: ["Played guitar at a school dance in 1955 and nearly vanished while doing it.", "His best friend is an eccentric inventor with wild white hair.", "A teenager who rides a skateboard and drives a time-travelling car."], emoji: "⏰🚗🎸🛹", sil: "Teenager in a red puffer vest and denim jacket, holding a guitar, standing beside a silver sports car with gull-wing doors.", answers: ["marty mcfly", "marty"] },
+      { char: "Doc Brown", show: "Back to the Future", clues: ["Hit his head on a bathroom sink in 1955 and dreamed up a flux capacitor.", "Owns a dog named Einstein and a train that flies.", "A wild-haired inventor in a white coat who built a time machine from a sports car."], emoji: "🧑‍🔬⏰🚂🐕", sil: "Tall man with wild white hair, a white lab coat, goggles pushed up on his forehead, holding a remote control.", answers: ["doc brown", "emmett brown", "doc"] },
+      { char: "Hannibal Lecter", show: "The Silence of the Lambs", clues: ["Once ate a census taker's liver with fava beans and a nice Chianti.", "Helps an FBI trainee catch a killer from behind glass in a cell.", "A brilliant psychiatrist in a mask who loves classical music and fine food."], emoji: "🎭🍷🧠🚔", sil: "Man in a white prison suit and a restraining mask, slicked-back hair, standing calmly behind glass.", answers: ["hannibal lecter", "hannibal"] },
+      { char: "Clarice Starling", show: "The Silence of the Lambs", clues: ["Grew up in an orphanage after her father, a town marshal, was shot.", "Her worst childhood memory is the sound of animals crying at a farm.", "A young FBI trainee who visits a caged killer for help on a case."], emoji: "👩‍🎓🔍🐑🚔", sil: "Young woman with red hair in a dark suit, holding a case file, standing in a dim corridor.", answers: ["clarice starling", "clarice"] }
+    ],
+    hard: [
+      { char: "Odysseus", show: "The Odyssey", clues: ["Spent seven years as a guest who could not leave an island nymph's home.", "Told a one-eyed giant his name was Nobody.", "Took ten years to sail home after a wooden horse ended a war."], emoji: "⛵🐴🏝️🏹", sil: "Bearded traveller in a cloak, holding a bow, standing at a ship's prow.", answers: ["odysseus", "ulysses"] },
+      { char: "Rosalina", show: "The Super Mario Galaxy Movie", clues: ["Watches over star-shaped children called Lumas from a travelling observatory.", "Her long blonde hair covers one of her eyes.", "A pale blue gown, a wand topped with a star, and a crown."], emoji: "⭐🌌👑🪄", sil: "Tall figure in a flowing teal gown, long hair veiling one eye, star-tipped wand in hand.", answers: ["rosalina"] },
+      { char: "Ryland Grace", show: "Project Hail Mary", clues: ["Woke up on a spaceship with no memory and two dead crewmates.", "A former middle-school science teacher turned reluctant astronaut.", "Befriended an alien engineer he calls Rocky, who communicates in musical notes."], emoji: "🚀👽🎵🔬", sil: "Ordinary man in a grey flight suit, floating in a cramped cabin, holding a science flask.", answers: ["ryland grace", "grace"] },
+      { char: "Miranda Priestly", show: "The Devil Wears Prada 2", clues: ["Once demanded the unpublished Harry Potter manuscript for her twin daughters.", "Her cerulean sweater speech left a whole office silent.", "Runs a fashion magazine from behind white hair and dark sunglasses."], emoji: "👠👓📖💄", sil: "Immaculate silver bob, dark sunglasses, tailored coat, standing still while everyone rushes around her.", answers: ["miranda priestly", "miranda"] },
+      { char: "Andy Sachs", show: "The Devil Wears Prada 2", clues: ["Got the job despite wearing a lumpy blue sweater to the interview.", "Her boss once threw her coat on her desk without a word.", "A journalism graduate who learned fashion one impossible errand at a time."], emoji: "👗📰👠☕", sil: "Young woman in a smart outfit, juggling a coffee cup and a stack of magazines, looking overwhelmed.", answers: ["andy sachs", "andrea sachs", "andy"] },
+      { char: "Kevin", show: "Minions & Monsters", clues: ["The tallest of the yellow trio, with two eyes and a tuft of hair.", "Once led the search for a new villain boss across the world.", "Speaks in a gibberish of banana, bable and laughter."], emoji: "🍌💛😆👓", sil: "Tall yellow capsule-shaped figure, two round goggled eyes, a sprout of hair, wearing small overalls.", answers: ["kevin"] },
+      { char: "Din Djarin", show: "Star Wars: The Mandalorian and Grogu", clues: ["Was raised by a warrior creed that forbids removing his helmet in front of others.", "His armour is forged from beskar, a metal that can stop a lightsaber.", "A bounty hunter who adopted a small green foundling."], emoji: "🪖🚀👶🟢", sil: "Silver-helmeted figure in full armour, T-shaped visor, cape over one shoulder, rifle at his side.", answers: ["din djarin", "the mandalorian", "mandalorian", "mando"] },
+      { char: "Jake Sully", show: "Avatar: Fire and Ash", clues: ["Was a wheelchair-using former marine before his mind moved into a tall blue body.", "Tamed the largest flying creature in the sky on his first try.", "A human who became a Na'vi chief and father on a jungle moon."], emoji: "🦅💙🌿🏹", sil: "Tall blue figure with a long braided tail, bow in hand, standing on a cliff over a jungle.", answers: ["jake sully", "jake"] },
+      { char: "Neytiri", show: "Avatar: Fire and Ash", clues: ["Nearly shot the newcomer with an arrow before deciding to teach him her ways.", "Her spirit tree connection lets her hear the voices of her ancestors.", "A fierce Na'vi hunter with a bow and a deep bond with forest creatures."], emoji: "🏹🌳💙🐺", sil: "Tall blue huntress, long braided hair, beads and feathers, bow drawn, standing among giant trees.", answers: ["neytiri"] },
+      { char: "Sally Owens", show: "Practical Magic 2", clues: ["Grew up with aunts who put a hex on any man who fell for a woman of her family.", "Once buried a dead boyfriend in the garden with her sister's help.", "A witch who runs a small shop and has two daughters who fear the family curse."], emoji: "🧙‍♀️🌿🏠🕯️", sil: "Dark-haired woman in a long skirt and shawl, holding a jar of herbs, standing in a garden at dusk.", answers: ["sally owens", "sally"] },
+      { char: "Samwise Gamgee", show: "The Lord of the Rings: The Fellowship of the Ring", clues: ["Once cooked rabbit stew with herbs while hiding from enemy soldiers.", "Carried his master up a volcano when his friend could no longer walk.", "A gardener who left his garden to follow his friend across the world."], emoji: "🌱🍳🏔️🧺", sil: "Short sturdy figure with curly hair, a pack on his back, a frying pan hanging from his belt, standing in a garden.", answers: ["samwise gamgee", "sam"] },
+      { char: "Gollum", show: "The Lord of the Rings: The Fellowship of the Ring", clues: ["Once strangled his cousin over a birthday present found in a river.", "Eats raw fish and talks to himself in two voices.", "A thin, pale creature who calls his treasure my precious."], emoji: "🐟💍👀🕳️", sil: "Thin crouched figure with large pale eyes, stringy hair, clutching something small in both hands, beside a cave pool.", answers: ["gollum", "smeagol"] },
+      { char: "Jack Torrance", show: "The Shining", clues: ["Typed the same sentence over and over for months in a hotel ballroom.", "Once broke his son's arm in a drunken rage years before the winter.", "A writer who takes his family to an empty hotel for the winter and loses his mind."], emoji: "🪓❄️🏨📝", sil: "Man with a wild grin, holding an axe, standing in a hedge maze covered in snow.", answers: ["jack torrance", "jack"] },
+      { char: "Norman Bates", show: "Psycho", clues: ["Stuffs birds in his parlour and keeps his mother's bedroom exactly as she left it.", "Runs a lonely motel off a highway that lost its traffic to a new road.", "A nervous young man who talks to his mother even though she is long dead."], emoji: "🔪🏨🪑🦅", sil: "Young man in a dark jacket, standing behind a motel desk, a stuffed owl on the wall behind him.", answers: ["norman bates", "norman"] },
+      { char: "Vito Corleone", show: "The Godfather", clues: ["Once had a horse's head placed in a producer's bed to win a favour.", "Survived being shot while buying oranges on a city street.", "A soft-spoken olive oil importer who settles disputes with favours."], emoji: "🫒🤵🐴🌹", sil: "Older man in a black suit with a rose on his lapel, sitting in a dark office, a cat in his lap.", answers: ["vito corleone", "don corleone", "vito"] },
+      { char: "Michael Corleone", show: "The Godfather", clues: ["Won a Navy Cross in the Pacific before joining the family business.", "Once told his wife the family business was almost legitimate, then shut the door on her.", "A quiet war hero who becomes the head of his family after his father is shot."], emoji: "🎖️🚪🤵🌹", sil: "Young man in a dark suit, cold eyes, sitting alone in a study, a door closing behind him.", answers: ["michael corleone", "michael"] },
+      { char: "Tyler Durden", show: "Fight Club", clues: ["Sells soap made from stolen fat to department stores.", "Lives in an abandoned house on Paper Street with his best friend.", "A soap salesman who starts an underground group where men punch each other."], emoji: "🧼👊🏠💥", sil: "Man in a red leather jacket and sunglasses, hair slicked back, standing in a ruined house with a bar of soap in hand.", answers: ["tyler durden", "tyler"] },
+      { char: "Marla Singer", show: "Fight Club", clues: ["Goes to support groups for diseases she does not have, just to feel something.", "Steals clothes from laundromats and smokes at a bus stop.", "A chain-smoking woman who crashes a support group and shares a house with two men."], emoji: "🚬👗🚌💊", sil: "Thin woman with short dark hair, a black dress, a cigarette between her fingers, standing at a bus stop.", answers: ["marla singer", "marla"] },
+      { char: "Rick Deckard", show: "Blade Runner", clues: ["Once retired four escaped androids in a single rainy week.", "Eats noodles at a street stall while a giant screen shows a geisha.", "A weary detective who hunts escaped androids in a rainy future city."], emoji: "🌧️🤖🍜🔫", sil: "Man in a long coat, collar up, holding a strange pistol, standing in neon rain.", answers: ["rick deckard", "deckard"] },
+      { char: "Roy Batty", show: "Blade Runner", clues: ["Once put out his own creator's eyes after asking him for more life.", "Gave a dying speech about tears in rain on a rooftop.", "A blond leader of escaped androids with only days left to live."], emoji: "🕊️🌧️🤖👁️", sil: "Tall blond man in a dark coat, a white dove in his hands, standing on a wet rooftop.", answers: ["roy batty", "roy"] }
+    ]
+  },
+  drama: {
+    easy: [
+      { char: "Eleven", show: "Stranger Things", clues: ["Loves frozen waffles so much she once stole a whole box from a store.", "Was kept in a lab and called by a number, not a name.", "A girl with a shaved head who moves objects with her mind."], emoji: "🧇🧠🩸👧", sil: "Girl in a pink dress with a blonde wig, or in a hospital gown, one hand raised, nose bleeding.", answers: ["eleven", "el"] },
+      { char: "Mike Wheeler", show: "Stranger Things", clues: ["Hid a strange friend in his basement and gave him his own bed.", "His walkie-talkie was the group's lifeline across town.", "The leader of a group of friends who play a monster game in a basement."], emoji: "📻🚲🐉🧢", sil: "Boy with a cap and a striped shirt, holding a walkie-talkie, riding a bicycle.", answers: ["mike wheeler", "mike"] },
+      { char: "Meredith Grey", show: "Grey's Anatomy", clues: ["Once held a live bomb in a patient's body cavity to keep it from exploding.", "Her mother was a famous surgeon who barely remembered her.", "A surgeon who narrates her life from a hospital in Seattle."], emoji: "🏥💉🩺🌧️", sil: "Woman in green scrubs, stethoscope around her neck, standing in a hospital corridor.", answers: ["meredith grey", "meredith"] },
+      { char: "Derek Shepherd", show: "Grey's Anatomy", clues: ["Was once known by a nickname about his perfect hair.", "Operates on brains and once saved a man with a bomb inside him.", "A handsome neurosurgeon who fell for an intern in a bar."], emoji: "🧠💇‍♂️🏥❤️", sil: "Man in scrubs and a white coat, perfect hair, holding a brain scan, smiling.", answers: ["derek shepherd", "derek", "mcdreamy"] },
+      { char: "Jack Reacher", show: "Reacher", clues: ["Travels with nothing but a toothbrush and a passport, buying new clothes as he goes.", "Was a military police major who can do maths in his head in seconds.", "A giant drifter who solves crimes with his fists and his brain."], emoji: "🚌💪🧮☕", sil: "Huge man in a plain t-shirt, hands in pockets, standing alone at a bus stop on a country road.", answers: ["jack reacher", "reacher"] },
+      { char: "Steve Harrington", show: "Stranger Things", clues: ["Once worked at a mall ice-cream shop wearing a sailor uniform.", "His baseball bat has nails hammered through it.", "A former popular boy who became the group's babysitter and protector."], emoji: "⚾🍨💇‍♂️🧢", sil: "Young man with big hair, holding a spiked bat, wearing a striped ice-cream shop uniform.", answers: ["steve harrington", "steve"] },
+      { char: "Jim Hopper", show: "Stranger Things", clues: ["Once worked as a city police detective before moving to a small town.", "Keeps a box of doughnuts on his desk and a cigarette in hand.", "A gruff police chief with a moustache who protects a strange girl."], emoji: "👮‍♂️🍩🚬🌲", sil: "Big man in a police uniform and hat, moustache, hands on hips, standing in front of a forest road.", answers: ["jim hopper", "hopper", "chief hopper"] },
+      { char: "Dustin Henderson", show: "Stranger Things", clues: ["Kept a baby monster in his trash can and fed it chocolate bars.", "Wears a cap from a science camp where he built a radio tower.", "A curly-haired boy with a big smile who loves science and his cat."], emoji: "🦷🧢📡🐱", sil: "Curly-haired boy in a cap, grinning, holding a compass, a backpack over one shoulder.", answers: ["dustin henderson", "dustin"] },
+      { char: "Daphne Bridgerton", show: "Bridgerton", clues: ["Was declared the diamond of the season by the queen herself.", "Her first dance partner was a duke who pretended to court her.", "The eldest daughter of a London family, out in society for her first season."], emoji: "💎👗🎶🌸", sil: "Young woman in a pale blue empire-waist gown, hair in curls, holding a dance card at a ball.", answers: ["daphne bridgerton", "daphne"] },
+      { char: "Max Mayfield", show: "Stranger Things", clues: ["Moved to town from California and beat the arcade high score on her first try.", "Her favourite song on a cassette tape once saved her life.", "A red-haired skateboarder who joins a group of boys hunting monsters."], emoji: "🛹🎧🔴🎮", sil: "Red-haired girl with headphones around her neck, skateboard under one arm, arms crossed.", answers: ["max mayfield", "max"] },
+      { char: "Sherlock Holmes", show: "Sherlock", clues: ["Plays the violin badly when he is bored and thinks out loud in a London flat.", "Once faked his own death by jumping from a hospital roof.", "Solves crimes from a flat at 221B with an army doctor friend."], emoji: "🔍🎻🏠🧠", sil: "Tall man in a long dark coat and scarf, sharp cheekbones, holding a magnifying glass.", answers: ["sherlock holmes", "sherlock", "holmes"] },
+      { char: "Walter White", show: "Breaking Bad", clues: ["A chemistry teacher who started cooking after a terminal diagnosis.", "Wears a pork pie hat and a goatee when he becomes his alter ego.", "Built a drug empire from an old RV in the desert."], emoji: "🧪💰🚐🎩", sil: "Bald man with a goatee and glasses, a pork pie hat, a yellow hazmat suit.", answers: ["walter white", "walter", "heisenberg"] },
+      { char: "Tyrion Lannister", show: "Game of Thrones", clues: ["Drinks wine and reads books while his family plots around him.", "Once defended a city with wildfire from the walls.", "A sharp-tongued dwarf who served as Hand to two rulers."], emoji: "🍷📚👑🦁", sil: "Short man with a scar across his face, a goblet of wine in hand.", answers: ["tyrion lannister", "tyrion", "the imp"] },
+      { char: "Jon Snow", show: "Game of Thrones", clues: ["Took an oath in black at a frozen wall at the edge of the world.", "Was raised as a bastard son and never knew his true mother.", "Came back from the dead after his own men stabbed him."], emoji: "🐺⚔️🧊⬛", sil: "Man in black furs with a longsword, dark curly hair, a white wolf at his side.", answers: ["jon snow", "jon", "lord commander"] },
+      { char: "Tony Soprano", show: "The Sopranos", clues: ["Sees a therapist about panic attacks and dreams of ducks in his pool.", "Runs a waste management business that fronts for crime.", "A New Jersey mob boss who runs his crew from a pork store and a strip club."], emoji: "🦆🛋️🍝🔫", sil: "Heavy-set man in a tracksuit, sitting by a backyard pool, a cigar in hand.", answers: ["tony soprano", "tony"] },
+      { char: "Don Draper", show: "Mad Men", clues: ["Stole a dead officer's identity in Korea and built a new life in advertising.", "Drinks whiskey at his desk and pitches cigarette slogans.", "A creative director with a secret past and a perfect suit."], emoji: "🥃🚬👔📺", sil: "Man in a sharp grey suit and tie, slicked hair, a glass of whiskey and a cigarette.", answers: ["don draper", "don", "dick whitman"] },
+      { char: "Olivia Benson", show: "Law & Order: SVU", clues: ["Has worked the same sex-crimes unit for over two decades.", "Her own mother was attacked, which shaped her career.", "A detective captain who always believes the victim first."], emoji: "👮‍♀️🗽🔦💙", sil: "Woman detective in a blazer, badge on her belt, standing in a squad room.", answers: ["olivia benson", "olivia", "liv"] },
+      { char: "Dexter Morgan", show: "Dexter", clues: ["Works in a police lab by day and hunts killers by night.", "Follows a code taught by his adoptive father, a cop.", "Keeps blood slides of his victims in a wooden box."], emoji: "🩸🔪🚤🌙", sil: "Man in a dark henley shirt, gloves on, holding a blood slide box, standing by a boat.", answers: ["dexter morgan", "dexter"] },
+      { char: "Saul Goodman", show: "Better Call Saul", clues: ["Hid in Nebraska under a new name, managing a cinnamon roll shop.", "Started as a mailroom worker before passing the bar exam.", "A lawyer with a strip-mall office who takes cash from shady clients."], emoji: "⚖️💵🕶️🏬", sil: "Man in a loud suit and tie, slicked hair, pointing at the camera, a cheap office behind him.", answers: ["saul goodman", "saul", "jimmy mcgill"] },
+      { char: "Geralt of Rivia", show: "The Witcher", clues: ["Takes coin to kill monsters, and grunts instead of talking.", "Drinks potions that turn his eyes black before a fight.", "Carries two swords on his back, one steel and one silver."], emoji: "⚔️🐺🧪🌕", sil: "Muscular man with long white hair tied back, two swords crossed on his back, a wolf medallion at his neck.", answers: ["geralt of rivia", "geralt", "the witcher"] }
+    ],
+    medium: [
+      { char: "Vecna", show: "Stranger Things", clues: ["Was once a boy with strange powers whose family feared him.", "Haunts his victims through their worst memories before killing them.", "A pale, vine-covered monster with long fingers who lives in an upside-down world."], emoji: "🕷️🥀⏰🕳️", sil: "Tall twisted figure, pale skin, long clawed fingers, vines wrapping the body, standing in a dark red world.", answers: ["vecna", "henry creel", "one"] },
+      { char: "Will Byers", show: "Stranger Things", clues: ["Was the first boy to disappear into a dark parallel world.", "Painted a picture of a three-headed dragon for his friend.", "A quiet artist boy who can sense the monsters of another dimension."], emoji: "🎨🌌👦🕯️", sil: "Small boy with a bowl haircut, holding a drawing, standing in a foggy dark place.", answers: ["will byers", "will"] },
+      { char: "Anthony Bridgerton", show: "Bridgerton", clues: ["Became head of his family at eighteen after his father's death from a bee sting.", "Once challenged a man to a duel over his sister's honour.", "The eldest brother, a viscount, who vowed never to marry for love."], emoji: "🐝💍🎩💼", sil: "Tall man in a dark tailcoat, stern face, standing at the top of a ballroom staircase.", answers: ["anthony bridgerton", "anthony"] },
+      { char: "Simon Basset", show: "Bridgerton", clues: ["Cannot stand his father's portrait and refuses to continue the family line.", "His stammer as a boy was cured by a nurse who taught him to speak slowly.", "A duke with a troubled past who agrees to a fake courtship."], emoji: "🎩💔🥊🌹", sil: "Handsome man in a dark coat, boxing gloves in hand, standing in a London drawing room.", answers: ["simon basset", "simon", "duke of hastings"] },
+      { char: "Penelope Featherington", show: "Bridgerton", clues: ["Writes a scandal sheet under a pen name while wearing yellow dresses.", "Has loved her best friend's brother since she was a girl.", "A clever wallflower who secretly runs the town's gossip paper."], emoji: "💛✍️📰🦋", sil: "Young woman in a yellow gown, quill in hand, hiding behind a column at a ball.", answers: ["penelope featherington", "penelope"] },
+      { char: "Cristina Yang", show: "Grey's Anatomy", clues: ["Was once fired for cutting a patient's LVAD wire.", "Her best friend is her person, the one she tells everything.", "A brilliant, ambitious heart surgeon who hates feelings."], emoji: "❤️🔪🏥💬", sil: "Woman in scrubs, dark hair, arms crossed, glaring at a heart monitor.", answers: ["cristina yang", "cristina"] },
+      { char: "Peter Sutherland", show: "The Night Agent", clues: ["Sits alone in a basement office answering a phone that almost never rings.", "His father was once accused of being a traitor.", "A young man who answers a secret emergency line at night."], emoji: "📞🕶️🏛️🌙", sil: "Young man in a suit, phone pressed to his ear, standing in a dark basement office.", answers: ["peter sutherland", "peter"] },
+      { char: "Colter Shaw", show: "Tracker", clues: ["Grew up off the grid, trained by his survivalist father.", "Drives an old truck across the country finding missing people for reward money.", "A lone-wolf survivalist who tracks down missing persons."], emoji: "🚙🏔️🔍🐺", sil: "Man with a backpack and a truck, standing on a mountain road, scanning the horizon.", answers: ["colter shaw", "colter"] },
+      { char: "Morgan Gillory", show: "High Potential", clues: ["Works nights cleaning a police station and solves crimes from the evidence board.", "Has an IQ of 160 and three kids to raise alone.", "A single mum with a genius mind who helps the LAPD solve cases."], emoji: "🧹🧠👩‍👧‍👦🔍", sil: "Woman in a cleaning uniform, holding a mop, staring at a crime board covered in notes.", answers: ["morgan gillory", "morgan"] },
+      { char: "Tommy Norris", show: "Landman", clues: ["Works as a fixer for an oil company in West Texas.", "Has a complicated family, including a son who works on the rigs.", "A tough oilman who cleans up problems in the oil fields."], emoji: "🛢️🤠🚛🔥", sil: "Man in a cowboy hat and work shirt, standing in front of oil pumps in a Texas field.", answers: ["tommy norris", "tommy"] },
+      { char: "Cersei Lannister", show: "Game of Thrones", clues: ["Once walked naked through the streets while a bell rang behind her.", "Blew up a great sept with wildfire rather than face trial.", "Married a king she despised to keep her family's power."], emoji: "🍷👑🔥🔔", sil: "Woman in a red gown and gold crown, long blonde hair, a goblet in hand.", answers: ["cersei lannister", "cersei"] },
+      { char: "Arya Stark", show: "Game of Thrones", clues: ["Trained with a faceless cult and learned to wear other people's faces.", "Carries a thin sword named Needle, a gift from her half-brother.", "Recites a list of names every night before she sleeps."], emoji: "🗡️🪙🐺👧", sil: "Young woman with a thin sword at her hip, hair tied back, a coin in her palm.", answers: ["arya stark", "arya"] },
+      { char: "Daenerys Targaryen", show: "Game of Thrones", clues: ["Walked into a burning pyre and came out unburned with three baby dragons.", "Freed slaves across a bay and was called Mother by them.", "Once married a horse lord to win an army."], emoji: "🐉🔥👑🌊", sil: "Woman with long silver hair, a flowing dress, three small dragons circling her shoulders.", answers: ["daenerys targaryen", "daenerys", "khaleesi", "the mother of dragons"] },
+      { char: "Rust Cohle", show: "True Detective", clues: ["Keeps a notebook of strange symbols and says time is a flat circle.", "Once worked undercover for four years in a biker gang.", "A lanky investigator who drinks beer and reads philosophy at crime scenes."], emoji: "📓🍺⏰🚬", sil: "Lanky man in a wrinkled shirt, tie loosened, a cigarette and a notebook in hand.", answers: ["rust cohle", "rust", "rustin cohle"] },
+      { char: "Marty Byrde", show: "Ozark", clues: ["A financial adviser who launders money for a cartel from a lakeside town.", "Once talked his way out of a cartel execution with a spreadsheet.", "Moved his family to a lakeside town to wash millions in cash."], emoji: "💵🏞️📊🚤", sil: "Man in a button-down shirt and glasses, a laptop under one arm, standing by a lake.", answers: ["marty byrde", "marty"] },
+      { char: "Ruth Langmore", show: "Ozark", clues: ["Learned to launder money as a teenager working at a lakeside resort.", "Her family ran scams from a trailer park for generations.", "A sharp-tongued teenager who runs a strip club and a motel."], emoji: "💵🏕️🔫😤", sil: "Young woman with a blonde ponytail, a cigarette behind her ear, a shotgun over one shoulder.", answers: ["ruth langmore", "ruth"] },
+      { char: "Kim Wexler", show: "Better Call Saul", clues: ["Started her career in a mailroom and climbed to partner at a big firm.", "Once ran a con on a businessman in a bar with a tequila bottle top.", "Left a big firm to defend the poor for free."], emoji: "⚖️🥃📁💼", sil: "Woman in a sharp blazer, dark hair in a ponytail, a briefcase in hand.", answers: ["kim wexler", "kim"] },
+      { char: "Gus Fring", show: "Breaking Bad", clues: ["Runs a fried chicken chain that hides a drug empire.", "Once poisoned a whole cartel with a bottle of tequila.", "A polite businessman who donates heavily to a university chemistry department."], emoji: "🍗💼☠️🎓", sil: "Man in a suit and tie, glasses, standing behind a fast-food counter with a smile.", answers: ["gus fring", "gus", "gustavo fring"] },
+      { char: "Jesse Pinkman", show: "Breaking Bad", clues: ["Started as a small-time dealer and ended up cooking beside his old teacher.", "Once threw a giant magnet at a police evidence room.", "Once threw bundles of cash from a moving car to strangers."], emoji: "🧲💵🚐🗣️", sil: "Young man in a hoodie and beanie, a backpack over one shoulder, standing by an old RV.", answers: ["jesse pinkman", "jesse"] },
+      { char: "Gregory House", show: "House", clues: ["Solves medical mysteries no one else can, while popping pain pills.", "Walks with a cane after a leg muscle died from a misdiagnosis.", "A genius diagnostician who hates his patients and loves puzzles."], emoji: "🩺💊🦯🧩", sil: "Man in a rumpled blazer, a cane in one hand, stubble, a whiteboard full of symptoms behind him.", answers: ["gregory house", "house", "dr house"] }
+    ],
+    hard: [
+      { char: "Eloise Bridgerton", show: "Bridgerton", clues: ["Would rather read about women's rights than dance at a ball.", "Once sneaked out to a printing shop to find the gossip writer.", "A sharp-tongued younger sister who hates the marriage market."], emoji: "📚✊👗💬", sil: "Young woman in a simple dress, book under her arm, rolling her eyes at a ballroom.", answers: ["eloise bridgerton", "eloise"] },
+      { char: "Benedict Bridgerton", show: "Bridgerton", clues: ["Sketches portraits in secret and once attended an art class in disguise.", "Fell for a woman in silver at a masquerade ball and never learned her name.", "The artistic second brother who dreams of painting, not marrying."], emoji: "🎨🎭🖌️🌙", sil: "Man with a paintbrush behind his ear, sketchbook in hand, gazing at a masquerade mask.", answers: ["benedict bridgerton", "benedict"] },
+      { char: "Sophie Baek", show: "Bridgerton", clues: ["Worked as a maid in the house where she was once a guest.", "Was locked in her room by her stepmother on the night of the masquerade.", "A young woman in a silver dress who danced with a stranger at midnight."], emoji: "🩶👗🎭🧹", sil: "Young woman in a shimmering silver gown, mask in hand, holding a broom behind her back.", answers: ["sophie baek", "sophie"] },
+      { char: "Anna Andrews", show: "His & Hers", clues: ["Works in a small-town radio station after leaving big-city news.", "Her best friend is a police detective investigating a murder.", "A journalist who returns to her hometown and digs into a crime."], emoji: "🎙️📰🔍🏡", sil: "Woman with a microphone at a radio desk, notebook beside her, looking out over a small town.", answers: ["anna andrews", "anna"] },
+      { char: "Jack Harper", show: "His & Hers", clues: ["Is a detective who once dated the journalist now investigating his case.", "Keeps his feelings hidden behind a badge and a quiet manner.", "A small-town detective caught between a murder case and an old love."], emoji: "👮‍♂️💔🔍🌙", sil: "Man in a dark jacket, badge on his belt, standing in the rain outside a crime scene.", answers: ["jack harper", "jack"] },
+      { char: "Frances Neagley", show: "Reacher", clues: ["Was once his sergeant in a special military unit and is the only person he truly trusts.", "Carries a knife everywhere and once broke a man's arm for touching her.", "A tough private investigator with a sharp mind and a dry sense of humour."], emoji: "🔪🕶️💼⚡", sil: "Woman in a dark jacket and sunglasses, arms crossed, standing next to a black car.", answers: ["frances neagley", "neagley"] },
+      { char: "Dr. Robby Robinavitch", show: "The Pitt", clues: ["Still blames himself for the death of his mentor during the pandemic.", "Runs a busy emergency department in Pittsburgh.", "An ER doctor who teaches young residents while hiding his own grief."], emoji: "🏥🚑😷🩺", sil: "Man in scrubs, tired eyes, standing in a crowded emergency room, clipboard in hand.", answers: ["robby robinavitch", "dr robby", "robby", "dr robinavitch", "michael robinavitch"] },
+      { char: "Dr. Heather Collins", show: "The Pitt", clues: ["Is a senior resident who keeps the ER running when the attending is away.", "Once clashed with a new intern over a patient's care.", "A calm, capable resident doctor in a Pittsburgh emergency department."], emoji: "🏥👩‍⚕️📋💉", sil: "Woman in scrubs with a stethoscope, calm face, holding a patient chart in a busy ER.", answers: ["heather collins", "dr collins", "collins"] },
+      { char: "Dr. Frank Langdon", show: "The Pitt", clues: ["Is a senior resident known for his steady hands and dark humour.", "Once mentored a young intern through a difficult first shift.", "An experienced ER doctor in Pittsburgh with a no-nonsense style."], emoji: "🏥🩺😤📋", sil: "Man in scrubs, sleeves rolled up, standing at a trauma bay, arms crossed.", answers: ["frank langdon", "dr langdon", "langdon"] },
+      { char: "Kate Sharma", show: "Bridgerton", clues: ["Came from India to London to find her sister a good husband.", "Is terrified of thunderstorms and once hid under a bed.", "A fiercely independent older sister who falls for a viscount."], emoji: "⛈️🐴💍🌺", sil: "Woman in a riding habit, dark hair, holding a horse's reins, standing in a garden.", answers: ["kate sharma", "kate"] },
+      { char: "Elliot Alderson", show: "Mr. Robot", clues: ["Suffers from a disorder that splits his mind into different people.", "His father died of cancer caused by the company he later hacked.", "Stores stolen data on a stack of CDs."], emoji: "💻🎧🖤🌙", sil: "Young man in a black hoodie, headphones on, a laptop glowing in a dark room.", answers: ["elliot alderson", "elliot"] },
+      { char: "Ragnar Lothbrok", show: "Vikings", clues: ["Faked his own death and was carried into a city in a coffin.", "His brother once betrayed him for a crown.", "Grew famous for raiding a monastery in the west."], emoji: "🪓🛡️⛵🐍", sil: "Man with braided hair and a beard, a shield and axe, standing on a longship.", answers: ["ragnar lothbrok", "ragnar"] },
+      { char: "Frank Underwood", show: "House of Cards", clues: ["Breaks the fourth wall to whisper his plans to the camera.", "Once pushed a journalist in front of a train.", "Rose from whip to president by blackmailing his own party."], emoji: "🎩📺🚂🗳️", sil: "Man in a suit, a ring on his finger, speaking straight at the camera.", answers: ["frank underwood", "frank"] },
+      { char: "Claire Underwood", show: "House of Cards", clues: ["Was once an ambassador to the United Nations.", "Ran a clean-water charity before entering politics.", "Became president after her husband resigned in disgrace."], emoji: "👩‍💼🌊🏛️👑", sil: "Woman in a sharp white suit, short blonde hair, a cold stare.", answers: ["claire underwood", "claire"] },
+      { char: "Villanelle", show: "Killing Eve", clues: ["An assassin who sends gifts to her victims before striking.", "Once killed a man with a hairpin.", "Speaks four languages and loves expensive perfume."], emoji: "💄🔪👗✈️", sil: "Woman in a pink tulle dress, a suitcase in hand, a sly smile.", answers: ["villanelle", "oksana astankova"] },
+      { char: "Eve Polastri", show: "Killing Eve", clues: ["A desk analyst who became obsessed with a female assassin.", "Once stabbed the assassin she hunted, then ran away.", "Worked in an intelligence office in London before going rogue."], emoji: "🔍📓🇬🇧💔", sil: "Woman in a trench coat, a notebook in hand, chasing a blonde figure through a market.", answers: ["eve polastri", "eve"] },
+      { char: "Tommy Shelby", show: "Peaky Blinders", clues: ["A bookmaker who built a crime family from a Birmingham street gang.", "Smokes constantly and runs his empire from a betting shop.", "Survived a war in France and came home with a medal and nightmares."], emoji: "🎩🐎🚬🔫", sil: "Man in a flat cap and three-piece suit, a cigarette between his fingers, standing in a smoky pub.", answers: ["tommy shelby", "tommy"] },
+      { char: "The Professor", show: "Money Heist", clues: ["Plans a mint robbery from a hangar with paper models of the building.", "Fell in love with the police negotiator hunting him.", "Kept his crew inside a royal mint for eleven days."], emoji: "🎭🏦📐❤️", sil: "Man in a suit and glasses, a paper model of a building in his hands, a red jumpsuit behind him.", answers: ["the professor", "sergio marquina", "professor"] },
+      { char: "Shaun Murphy", show: "The Good Doctor", clues: ["Sees the human body as glowing diagrams in his mind.", "Was raised by a foster father after his brother died in an accident.", "A surgical resident with autism and savant syndrome."], emoji: "🧩🏥✈️🩺", sil: "Young man in scrubs, a backpack over one shoulder, staring at a glowing diagram.", answers: ["shaun murphy", "shaun", "dr murphy"] },
+      { char: "Omar Little", show: "The Wire", clues: ["A stick-up man who robs drug dealers and whistles a nursery rhyme.", "Once testified in court wearing a tie and a suit.", "Lives by a code and never harms innocent people."], emoji: "🔫🎵⚖️🌆", sil: "Man in a long coat, a shotgun in hand, a scar across his face, whistling.", answers: ["omar little", "omar"] }
+    ]
+  },
+  anime: {
+    easy: [
+      { char: "Monkey D. Luffy", show: "One Piece", clues: ["Has a scar under his eye that he gave himself with a knife as a child.", "Wears a straw hat given to him by a red-haired pirate.", "A captain who wants to find the greatest treasure on the sea."], emoji: "👒🍖⚓🌊", sil: "Young man in a straw hat and red vest, scar under one eye, arm stretched long.", answers: ["monkey d luffy", "luffy", "monkey d. luffy"] },
+      { char: "Roronoa Zoro", show: "One Piece", clues: ["Once got lost on the way to the bathroom and ended up in another town.", "Fights with three swords, one held in his teeth.", "A green-haired swordsman who dreams of being the world's greatest."], emoji: "⚔️🟢🧭🍶", sil: "Man with green hair and a bandana, three swords at his waist, arms crossed.", answers: ["roronoa zoro", "zoro"] },
+      { char: "Naruto Uzumaki", show: "Naruto", clues: ["Once painted the faces of the stone heads on a mountain as a prank.", "Has a nine-tailed fox sealed inside him since birth.", "A blond ninja in orange who dreams of becoming the leader of his village."], emoji: "🦊🍜🌀🧡", sil: "Blond boy in an orange jumpsuit, whisker marks on his cheeks, headband tied across his forehead.", answers: ["naruto uzumaki", "naruto"] },
+      { char: "Kakashi Hatake", show: "Naruto", clues: ["Is always late to meetings and blames it on a black cat crossing his path.", "Reads romance novels in the middle of battles.", "A masked ninja with silver hair and one eye covered."], emoji: "📖🐶👁️🥷", sil: "Man with spiky silver hair, a mask covering his face, one eye visible, a book in hand.", answers: ["kakashi hatake", "kakashi"] },
+      { char: "Gojo Satoru", show: "Jujutsu Kaisen", clues: ["Was once sealed inside a small box for months while his students fought on.", "Wears a blindfold because his eyes are too powerful to show.", "A white-haired sorcerer who is called the strongest of his time."], emoji: "👁️🖤😎✨", sil: "Tall man with white hair and a black blindfold, hands in pockets, standing in a school corridor.", answers: ["gojo satoru", "gojo", "satoru gojo"] },
+      { char: "Tanjiro Kamado", show: "Demon Slayer", clues: ["Can smell emotions, and once tracked a demon by the scent of its blood.", "Wears a pair of wooden earrings passed down from his father.", "A kind boy with a scar on his forehead who hunts demons to save his sister."], emoji: "👃🗡️🌊🔥", sil: "Boy in a green checked coat, a scar on his forehead, a sword at his side, a wooden box on his back.", answers: ["tanjiro kamado", "tanjiro"] },
+      { char: "Nezuko Kamado", show: "Demon Slayer", clues: ["Sleeps for months at a time to regain her strength.", "Once walked in sunlight, which should have killed her.", "A demon girl who wears a bamboo muzzle and protects her brother."], emoji: "🎋🌸😴☀️", sil: "Girl with long dark hair and pink eyes, a bamboo muzzle across her mouth, a pink kimono.", answers: ["nezuko kamado", "nezuko"] },
+      { char: "Goku", show: "Dragon Ball", clues: ["Once hit his head as a baby, which changed his whole personality.", "Can turn his hair gold when he gets angry enough.", "A cheerful fighter with spiky black hair who loves to eat and train."], emoji: "🍜🐉⚡🧡", sil: "Man with spiky black hair in an orange outfit, a staff on his back, standing on a cloud.", answers: ["goku", "son goku"] },
+      { char: "Ash Ketchum", show: "Pokemon", clues: ["Started his journey late and overslept on the day he chose his first partner.", "Has a yellow electric mouse who refuses to stay in its ball.", "A boy in a red cap who wants to become a master of pocket monsters."], emoji: "🧢⚡🐭🏆", sil: "Boy in a red cap and blue jacket, a yellow mouse on his shoulder, a backpack on his back.", answers: ["ash ketchum", "ash"] },
+      { char: "Pikachu", show: "Pokemon", clues: ["Once refused to evolve into a stronger form, even when offered a stone.", "Stores electricity in the red pouches on its cheeks.", "A small yellow mouse that says its own name and shocks its enemies."], emoji: "⚡🐭💛🔴", sil: "Small yellow mouse with long ears tipped in black, red cheek pouches, a lightning tail.", answers: ["pikachu"] },
+      { char: "Edward Elric", show: "Fullmetal Alchemist: Brotherhood", clues: ["A short boy with a metal arm and leg who wears a long red coat.", "His little brother's soul lives inside a suit of armour.", "He searches for a stone that can restore his body and his brother's."], emoji: "🔴🤖⚙️🔥", sil: "Short boy in a long red coat, a metal arm and leg, blond hair tied back in a braid, one hand raised.", answers: ["edward elric", "edward", "fullmetal"] },
+      { char: "Ichigo Kurosaki", show: "Bleach", clues: ["An orange-haired schoolboy who can see ghosts.", "He carries a huge sword as wide as his own back.", "A substitute soul reaper who protects his town from masked spirits."], emoji: "🍊⚔️👻🧡", sil: "Teenager with spiky orange hair, a huge sword strapped across his back, a black robe.", answers: ["ichigo kurosaki", "ichigo"] },
+      { char: "Eren Yeager", show: "Attack on Titan", clues: ["A boy who watched his mother die and swore to wipe out the giants outside the walls.", "He can turn into a giant himself, with a loud roar and clouds of steam.", "He wears a green cloak and fights with twin blades on wires."], emoji: "🗡️🧣😠💥", sil: "Young man with messy brown hair, a green cloak, twin blades in hand, harness straps across his chest.", answers: ["eren yeager", "eren"] },
+      { char: "Saitama", show: "One Punch Man", clues: ["A bald man in a yellow suit who ends every fight with one hit.", "He became strong by doing 100 push-ups, 100 sit-ups and a 10 km run every day.", "A bored-looking man with a white cape who does his shopping at the supermarket."], emoji: "🦸💪😑🛒", sil: "Bald man in a yellow suit, red gloves and boots, a white cape, standing with a blank face.", answers: ["saitama", "caped baldy"] },
+      { char: "Izuku Midoriya", show: "My Hero Academia", clues: ["A boy born without powers who inherits the strongest power from his idol.", "He breaks his own bones every time he uses his new power.", "A green-haired boy with freckles who mutters notes about everyone he meets."], emoji: "💚✊📓😤", sil: "Boy with messy green hair and freckles, a green suit with a mask, one fist glowing with green light.", answers: ["izuku midoriya", "izuku", "deku"] },
+      { char: "Anya Forger", show: "Spy x Family", clues: ["A pink-haired little girl who can read minds.", "She loves peanuts and once helped stop a bomb with a big white dog.", "An adopted girl who goes to a fancy school in a black uniform."], emoji: "🥜🧠🎀🐶", sil: "Little girl with pink hair and horn-like hair cones, a black school uniform, a big smile.", answers: ["anya forger", "anya"] },
+      { char: "Doraemon", show: "Doraemon", clues: ["A blue robot cat with no ears who came from the future.", "He pulls gadgets from a pocket on his belly.", "A round blue cat who helps a lazy boy with his homework."], emoji: "🔵🐱🔔🍩", sil: "Round blue cat with a white belly, a red collar with a yellow bell, standing on two legs.", answers: ["doraemon"] },
+      { char: "Usagi Tsukino", show: "Sailor Moon", clues: ["A clumsy schoolgirl with twin buns who cries at the smallest thing.", "She fights evil with a golden tiara and a crescent wand.", "A blonde girl who transforms with a brooch and loves to eat and sleep."], emoji: "🎀✨💖👑", sil: "Blonde girl with long twin tails and buns, a blue and white school uniform with a red bow, a golden tiara.", answers: ["usagi tsukino", "usagi", "sailor moon"] },
+      { char: "Totoro", show: "My Neighbor Totoro", clues: ["A big grey forest spirit who waits at a bus stop holding a leaf.", "He rides a bus shaped like a cat.", "A huge fluffy creature with a wide grin and a cream belly."], emoji: "🌳🚌🍃☔", sil: "Huge grey fluffy figure with pointed ears, a wide grin, a cream belly, holding a leaf over his head.", answers: ["totoro"] },
+      { char: "Sung Jinwoo", show: "Solo Leveling", clues: ["A young man known as the weakest of his kind who rises after surviving a deadly quest.", "He can summon an army of shadows that fight for him.", "A black-haired man with purple eyes who commands a shadow army."], emoji: "🗡️😈👑🌑", sil: "Young man with black hair and glowing purple eyes, a dark coat, shadowy figures rising behind him.", answers: ["sung jinwoo", "jinwoo"] }
+    ],
+    medium: [
+      { char: "Nami", show: "One Piece", clues: ["Has a blue tattoo on her shoulder that she redesigned from an old gang mark.", "Can read the weather like a map and once stole a whole ship.", "A red-haired navigator who loves money and tangerines."], emoji: "🍊🗺️💰⛈️", sil: "Woman with orange hair and a blue striped shirt, holding a map, standing on a ship's deck.", answers: ["nami"] },
+      { char: "Sanji", show: "One Piece", clues: ["Was once forced to cook for a man who had eaten his own leg.", "Only fights with his legs so his hands stay clean for cooking.", "A blond cook in a suit who loves women and hates wasting food."], emoji: "🍳🚬💛👨‍🍳", sil: "Blond man in a black suit, one eye hidden by hair, a cigarette in hand, standing in a kitchen.", answers: ["sanji", "vinsmoke sanji"] },
+      { char: "Sakura Haruno", show: "Naruto", clues: ["Once cut her own long hair with a kunai to escape an enemy's grip.", "Can punch the ground so hard it cracks like an earthquake.", "A pink-haired ninja who became a medical expert."], emoji: "🌸💪💚🥊", sil: "Woman with pink hair and a red dress, one fist raised, standing in a crater.", answers: ["sakura haruno", "sakura"] },
+      { char: "Yuji Itadori", show: "Jujutsu Kaisen", clues: ["Ate a cursed finger on a dare and became the host of a demon king.", "Can run faster than a car thanks to his unnatural strength.", "A cheerful schoolboy who fights curses with his bare fists."], emoji: "👹✊🏫🍜", sil: "Young man with pink hair, a scar on his face, fists raised, standing in a schoolyard.", answers: ["yuji itadori", "yuji"] },
+      { char: "Megumi Fushiguro", show: "Jujutsu Kaisen", clues: ["Summons shadow animals, including two black dogs and a white owl.", "Was once sold to a powerful clan by his own father.", "A dark-haired sorcerer with a calm face who fights with shadows."], emoji: "🐺🖤🌑🦉", sil: "Young man with dark spiky hair, hands forming a shadow sign, a black dog beside him.", answers: ["megumi fushiguro", "megumi"] },
+      { char: "Zenitsu Agatsuma", show: "Demon Slayer", clues: ["Only fights well when he is asleep.", "Can hear sounds no one else can, even a demon's heartbeat.", "A blond boy who panics easily but uses lightning-fast sword strikes."], emoji: "⚡😱💛🎧", sil: "Blond boy in a yellow outfit, trembling, a sword in hand, a bolt of lightning behind him.", answers: ["zenitsu agatsuma", "zenitsu"] },
+      { char: "Inosuke Hashibira", show: "Demon Slayer", clues: ["Was raised by wild boars in the mountains.", "Fights with two jagged swords and no shirt.", "A loud boy who wears a boar's head as a mask."], emoji: "🐗⚔️🌲😤", sil: "Muscular boy wearing a boar's head, two serrated swords in hand, standing in a forest.", answers: ["inosuke hashibira", "inosuke"] },
+      { char: "Subaru Natsuki", show: "Re:Zero", clues: ["Dies and returns to a save point every time he is killed.", "Once spent a week in a loop trying to save a village from a curse.", "A boy from another world who can rewind time by dying."], emoji: "🔄💀⏰🛒", sil: "Young man in a tracksuit, hands on his knees, panting, a checkpoint glowing behind him.", answers: ["subaru natsuki", "subaru"] },
+      { char: "Rem", show: "Re:Zero", clues: ["Has a twin sister who lost her horn and her memories.", "Once carried her master on her back through a blizzard.", "A blue-haired maid with a demon horn who loves her master."], emoji: "💙👗🔗😈", sil: "Girl with blue hair and a maid outfit, a spiked ball on a chain in hand, a small horn on her forehead.", answers: ["rem"] },
+      { char: "Vegeta", show: "Dragon Ball", clues: ["Trained in a room where gravity is hundreds of times stronger than Earth's.", "Was once a prince of a destroyed planet.", "A proud warrior with spiky black hair who rivals his best friend."], emoji: "👑💥🖤⚡", sil: "Man with tall spiky black hair and a widow's peak, arms crossed, in blue and white armour.", answers: ["vegeta"] },
+      { char: "Katsuki Bakugo", show: "My Hero Academia", clues: ["He was once kidnapped by villains who wanted to recruit him.", "He dreams of beating the green-haired boy who inherited a great power.", "A loud blond boy who sweats nitroglycerin and makes explosions with his palms."], emoji: "💥😡💣🧨", sil: "Blond boy with spiky hair, a black and orange suit with grenade-shaped gauntlets, a furious glare.", answers: ["katsuki bakugo", "katsuki", "bakugo", "kacchan"] },
+      { char: "Mikasa Ackerman", show: "Attack on Titan", clues: ["She wears a red scarf given to her by the boy she protects.", "She was taken in after her parents were killed by traffickers.", "A black-haired girl with a red scarf who is unmatched with twin blades."], emoji: "🧣⚔️🖤💪", sil: "Girl with short black hair, a red scarf, twin blades at her hips, a green cloak.", answers: ["mikasa ackerman", "mikasa"] },
+      { char: "Trafalgar Law", show: "One Piece", clues: ["His power lets him cut and move anything inside a room he creates.", "He once saved a straw-hat captain by operating on him after a great war.", "A surgeon with tattoos on his fingers who wears a white spotted hat."], emoji: "🎩⚔️💛🐻", sil: "Tall man in a white spotted hat, tattoos on his fingers, a long sword over his shoulder, a small spotted bear at his side.", answers: ["trafalgar law", "law", "trafalgar d water law"] },
+      { char: "Itachi Uchiha", show: "Naruto", clues: ["He wiped out his whole clan in one night, sparing only his little brother.", "His eyes can trap enemies in a world where time lasts for days.", "A calm man with long black hair tied back who is followed by crows."], emoji: "🐦‍⬛👁️🌑🔥", sil: "Man with long black hair tied low, a high collar, red eyes, crows circling around him.", answers: ["itachi uchiha", "itachi"] },
+      { char: "Yuta Okkotsu", show: "Jujutsu Kaisen", clues: ["A boy who wears a cursed ring given by his childhood love.", "He carries a katana and is followed by a powerful spirit that protects him.", "A shy boy in a white uniform who became one of the strongest sorcerers."], emoji: "💍⚔️👻🤍", sil: "Boy with messy dark hair, a white uniform, a katana on his back, a huge shadowy figure looming behind him.", answers: ["yuta okkotsu", "yuta"] },
+      { char: "Giyu Tomioka", show: "Demon Slayer", clues: ["A stoic swordsman who wears a coat that is half red and half patterned.", "He once let a boy and his sister live, breaking his own rules.", "A quiet man with black hair tied back who fights with water."], emoji: "💧⚔️😶🟦", sil: "Man with black hair tied back, a coat half red and half yellow-patterned, a sword at his side, water swirling around him.", answers: ["giyu tomioka", "giyu"] },
+      { char: "Shinobu Kocho", show: "Demon Slayer", clues: ["A small swordswoman who cannot cut a neck, so she uses poison instead.", "She wears a butterfly hairpin and smiles even when she is furious.", "A tiny woman with a butterfly pin who fights with a needle-thin blade."], emoji: "🦋💜😊⚔️", sil: "Small woman with black hair and a butterfly pin, a white and purple uniform, a thin needle-like blade in hand.", answers: ["shinobu kocho", "shinobu"] },
+      { char: "Gon Freecss", show: "Hunter x Hunter", clues: ["A green-haired boy with a fishing rod who wants to find his father.", "He once spent weeks in a hospital bed after a fight that nearly killed him.", "A cheerful boy with spiky green hair who can sense the strongest fighters."], emoji: "🎣💚🌿✨", sil: "Boy with spiky green hair, a green jacket, a fishing rod over his shoulder, a big smile.", answers: ["gon freecss", "gon"] },
+      { char: "Killua Zoldyck", show: "Hunter x Hunter", clues: ["A silver-haired boy who can turn his hands into claws of lightning.", "He ran away from a family of assassins to find a friend.", "A boy with white hair and blue eyes who loves chocolate and rides a skateboard."], emoji: "⚡🍫🛹😼", sil: "Boy with spiky white hair, a blue outfit, a skateboard under one arm, a cool stare.", answers: ["killua zoldyck", "killua"] },
+      { char: "Denji", show: "Chainsaw Man", clues: ["A poor boy who sold an eye and a kidney to pay his father's debt.", "He dreams of a normal life with jam on toast and a girlfriend.", "A blond boy with shark-like teeth who turns into a devil with blades on his head."], emoji: "🐶🍞😈🔥", sil: "Boy with blond hair and sharp teeth, a white shirt and tie, a cord hanging from his chest, one hand on a rip cord.", answers: ["denji"] }
+    ],
+    hard: [
+      { char: "Sasuke Uchiha", show: "Naruto", clues: ["His brother once made him watch their whole family die again and again.", "His eyes turn red with a strange pattern when he uses his family's power.", "A dark-haired ninja who left his village to seek revenge."], emoji: "👁️🔥⚡🌑", sil: "Young man with dark spiky hair, high collar, red eyes, holding a sword.", answers: ["sasuke uchiha", "sasuke"] },
+      { char: "Nobara Kugisaki", show: "Jujutsu Kaisen", clues: ["Fights with a hammer, nails and a straw doll.", "Came to the city from the countryside to escape small-town life.", "A confident girl with a fierce temper and a love of fashion."], emoji: "🔨📌🎀😤", sil: "Girl with short brown hair, holding a hammer, a straw doll tucked at her belt.", answers: ["nobara kugisaki", "nobara"] },
+      { char: "Kyojuro Rengoku", show: "Demon Slayer", clues: ["Eats his meals with such joy that he shouts about how delicious they are.", "His father once burned his books and called his dreams worthless.", "A flame swordsman with bright yellow hair who never stops smiling."], emoji: "🔥🍱😄⚔️", sil: "Man with flame-like yellow hair, a white cape, a sword wreathed in fire, standing on a train roof.", answers: ["kyojuro rengoku", "rengoku"] },
+      { char: "Frieren", show: "Frieren: Beyond Journey's End", clues: ["Has spent a thousand years collecting spells, including one that makes flowers bloom.", "Once waited fifty years to keep a promise to an old friend.", "An elf mage with long white hair who outlives all her friends."], emoji: "🧝‍♀️🌸⏳🪄", sil: "Small elf woman with long white hair and pointed ears, a staff in hand, standing in a flower field.", answers: ["frieren"] },
+      { char: "Fern", show: "Frieren: Beyond Journey's End", clues: ["Was taught magic by a priest who found her in a war-torn village.", "Can cast a spell that makes a whole field of flowers grow.", "A young mage with purple hair who travels with an elf."], emoji: "🌸💜🪄📖", sil: "Young woman with purple hair, a staff over her shoulder, walking beside a white-haired elf.", answers: ["fern"] },
+      { char: "Stark", show: "Frieren: Beyond Journey's End", clues: ["Is afraid of almost everything but fights anyway when his friends need him.", "Was trained by a warrior who made him carry a heavy axe.", "A tall young warrior with red hair who guards his friends."], emoji: "🪓😰🛡️🔴", sil: "Tall young man with red hair, a huge axe on his back, hiding behind a rock.", answers: ["stark"] },
+      { char: "Emilia", show: "Re:Zero", clues: ["Is half-elf and looks exactly like a witch who once destroyed the world.", "Once froze a whole forest to protect her friends.", "A silver-haired girl with a cat spirit who wants to become queen."], emoji: "❄️🐱👑💜", sil: "Girl with long silver hair and purple eyes, a white dress, a small cat floating beside her.", answers: ["emilia"] },
+      { char: "Light Yagami", show: "Death Note", clues: ["Once wrote a name in a notebook while eating a potato chip.", "Was a top student who found a notebook dropped by a death god.", "A brilliant student who kills criminals by writing their names."], emoji: "📓🍎✍️😈", sil: "Young man in a school uniform, holding a black notebook, a pen in hand, a sinister smile.", answers: ["light yagami", "light", "kira"] },
+      { char: "L", show: "Death Note", clues: ["Sits crouched on chairs because sitting normally lowers his thinking power.", "Only eats sweets and once stacked sugar cubes while solving a case.", "A pale detective who hides his face and solves crimes no one else can."], emoji: "🍰🕵️‍♂️💻🖤", sil: "Pale man with messy black hair, bare feet, crouched on a chair with a laptop.", answers: ["l", "ryuzaki"] },
+      { char: "Levi Ackerman", show: "Attack on Titan", clues: ["Once cleaned a whole room with a mop while his squad waited for orders.", "Grew up in an underground city and was raised by a criminal.", "A short captain with unmatched skill who spins through the air on wires."], emoji: "🧹⚔️🖤💨", sil: "Short man in a military uniform, a cravat at his neck, blades in both hands, standing on a rooftop.", answers: ["levi ackerman", "levi", "captain levi"] },
+      { char: "Erwin Smith", show: "Attack on Titan", clues: ["He lost his right arm to a bite and kept giving orders with his left.", "His father was killed for teaching a forbidden theory about the world outside.", "A blond commander who led a charge he knew would kill most of his own soldiers."], emoji: "🦅⚔️💛🩸", sil: "Tall blond man in a military uniform, one empty sleeve pinned up, a green cloak over his shoulders.", answers: ["erwin smith", "erwin"] },
+      { char: "Kisuke Urahara", show: "Bleach", clues: ["He was once the captain of a science division before being exiled.", "He runs a small shop and hides a powerful sword inside his cane.", "A man in a striped hat and green coat who always seems to know more than he says."], emoji: "🎩🟢⚔️😏", sil: "Man in a green and white striped hat, a green coat, a cane in hand, a fan covering his smile.", answers: ["kisuke urahara", "urahara"] },
+      { char: "Roy Mustang", show: "Fullmetal Alchemist: Brotherhood", clues: ["He lost his sight after being forced to open a forbidden gate, and it was later restored.", "He keeps a lighter in his pocket because his gloves only work when dry.", "A colonel in a blue uniform with white gloves who makes fire with a snap."], emoji: "🔥🧤😎💙", sil: "Man in a dark blue uniform, white gloves, dark hair, snapping his fingers with a flame bursting out.", answers: ["roy mustang", "roy"] },
+      { char: "Hange Zoe", show: "Attack on Titan", clues: ["She once named two captured giants after a folk-tale killer called Sawney Bean.", "She wears an eyepatch after a blast injured her left eye.", "A wild scientist with glasses and a brown ponytail who loves studying giants."], emoji: "🔬🤓🧪💥", sil: "Woman with brown hair in a ponytail, glasses, one eye covered, a lab coat over a uniform.", answers: ["hange zoe", "hange"] },
+      { char: "Shota Aizawa", show: "My Hero Academia", clues: ["He once expelled a whole class in a single year.", "He sleeps in a yellow bag in the corner of his classroom.", "A tired teacher with a long scarf who can erase powers with a stare."], emoji: "😴🧣👁️🖤", sil: "Man with messy black hair, a long grey scarf, a yellow sleeping bag at his feet, tired eyes.", answers: ["shota aizawa", "aizawa", "eraser head"] },
+      { char: "Toge Inumaki", show: "Jujutsu Kaisen", clues: ["He speaks only in rice-ball ingredients so his words cannot hurt anyone.", "He covers his mouth with a high collar because his voice is a weapon.", "A boy with spiky hair and a snake tattoo who says salmon and roe instead of hello."], emoji: "🍙🐍😶🎤", sil: "Boy with light spiky hair, a high collar hiding his mouth, a snake mark on his cheek, hands in pockets.", answers: ["toge inumaki", "toge"] },
+      { char: "Ubel", show: "Frieren: Beyond Journey's End", clues: ["She can copy any spell she sees, but only if she understands it.", "She passed a brutal exam where mages dueled each other for a top rank.", "A girl with green hair tied back who carries a staff and a sharp smile."], emoji: "💚🪄✂️😏", sil: "Girl with green hair tied back, a dark robe, a staff in hand, a calm and cutting smile.", answers: ["ubel"] },
+      { char: "Garfiel Tinsel", show: "Re:Zero", clues: ["He can turn into a huge tiger when he fights at full strength.", "He guards a hidden sanctuary and once refused to let anyone pass its barrier.", "A blond boy with tiger fangs who protects a village."], emoji: "🐯😤💛🛡️", sil: "Blond boy with tiger fangs and a scar, a green jacket, arms crossed at a village gate.", answers: ["garfiel tinsel", "garfiel"] },
+      { char: "Kanao Tsuyuri", show: "Demon Slayer", clues: ["She flips a coin to make every decision because she was raised to have no will of her own.", "She was bought as a child by a woman who gave her the coin.", "A quiet girl with a butterfly hairpin who follows orders without question."], emoji: "🪙🦋😶🌸", sil: "Girl with dark hair in a ponytail, a butterfly pin, a white uniform, a coin between her fingers.", answers: ["kanao tsuyuri", "kanao"] },
+      { char: "Askeladd", show: "Vinland Saga", clues: ["He is half Welsh and half Danish, and he hides his true name from his men.", "He once killed a king with a sword he hid inside his sleeve.", "A cunning leader with a scarred face who leads a band of raiders."], emoji: "⚔️👑🗡️😏", sil: "Man with a scarred face and a smirk, a fur cloak, a sword at his hip, standing before a ship.", answers: ["askeladd"] }
+    ]
+  }
+};
+
+// ---------- Puzzle day: 05:00 to 24:00 local time ----------
+// Puzzle-day date = today if now is 05:00 or later, else yesterday.
+function dayOfYear(d) {
+  var start = new Date(d.getFullYear(), 0, 0);
+  return Math.floor((d - start) / 86400000);
+}
+function dateKey(d) {
+  var m = String(d.getMonth() + 1); if (m.length < 2) m = "0" + m;
+  var day = String(d.getDate()); if (day.length < 2) day = "0" + day;
+  return d.getFullYear() + "-" + m + "-" + day;
+}
+function puzzleDayOf(d) {
+  var p = new Date(d);
+  if (p.getHours() < 5) p.setDate(p.getDate() - 1);
+  return p;
+}
+var now = new Date();
+var pDay = puzzleDayOf(now);
+var KEY = dateKey(pDay);
+var idx = dayOfYear(pDay) % 20;
+var LOCKED = now.getHours() < 5;
+var CATS = ["movie", "drama", "anime"];
+var TIERS = ["easy", "medium", "hard"];
+var CATLABEL = { movie: "MOVIE", drama: "DRAMA", anime: "ANIME" };
+var TIERLABEL = { easy: "EASY", medium: "MEDIUM", hard: "HARD" };
+
+// ---------- Today's trend set (Phase 2) ----------
+// The daily robot writes today's 9 puzzle keys to today-puzzles.json in
+// the PUBLIC starpuzzle-video repo; this page fetches it from jsDelivr:
+//   https://cdn.jsdelivr.net/gh/trenddealsusa/starpuzzle-video@main/today-puzzles.json
+// When the JSON's date matches this visitor's puzzle day, its bank
+// indices replace the date-seeded set below. On ANY failure (fetch
+// fails, date mismatch, bad shape, bad index) the page falls back to
+// the date-seeded set — the game never breaks. The JSON is only a
+// picker: all puzzle data still comes from the embedded PUZZLES bank,
+// so the JSON can never inject a new puzzle, only choose one.
+// NOTE: jsDelivr caches the file after each repo upload, so a fresh
+// upload can take a while to reach players; the date check below means
+// a stale file safely falls back to the date-seeded set meanwhile.
+var TREND_JSON_URL = "https://cdn.jsdelivr.net/gh/trenddealsusa/starpuzzle-video@main/today-puzzles.json";
+var TREND = null; // {movie:{easy:3,...}, drama:{...}, anime:{...}} or null
+function trendIndex(cat, tier) {
+  if (!TREND) return -1;
+  var c = TREND[cat];
+  if (!c) return -1;
+  var i = c[tier];
+  if (typeof i !== "number" || i < 0) return -1;
+  var arr = PUZZLES[cat] && PUZZLES[cat][tier];
+  if (!arr || i >= arr.length) return -1;
+  return i;
+}
+function loadTrendSet(done) {
+  var finished = false;
+  function finish() { if (!finished) { finished = true; done(); } }
+  // Hard timeout: never let the cards wait more than 2.5s.
+  setTimeout(finish, 2500);
+  try {
+    fetch(TREND_JSON_URL, { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    }).then(function (data) {
+      if (!data || data.date !== KEY || !data.puzzles) return;
+      var ok = true;
+      var t = {};
+      CATS.forEach(function (c) {
+        t[c] = {};
+        TIERS.forEach(function (tier) {
+          var v = data.puzzles[c] && data.puzzles[c][tier];
+          if (typeof v !== "number" || v < 0
+              || !PUZZLES[c] || !PUZZLES[c][tier]
+              || v >= PUZZLES[c][tier].length) { ok = false; return; }
+          t[c][tier] = v;
+        });
+      });
+      if (ok) TREND = t;
+    }).catch(function () {}).then(finish);
+  } catch (e) { finish(); }
+}
+
+// ---------- State ----------
+// Server (Firestore) is the source of truth when signed in. Guests use
+// localStorage only. Server value always wins over localStorage.
+function lsGet(k, fallback) {
+  try { var v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); }
+  catch (e) { return fallback; }
+}
+function lsSet(k, v) {
+  try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+}
+function loadGuest() {
+  return {
+    points: lsGet("starpuzzle3_points", 0),
+    streak: lsGet("starpuzzle3_streak", 0),
+    lastPuzzleDay: lsGet("starpuzzle3_last_day", ""),
+    solves: lsGet("starpuzzle3_solves", { movie: 0, drama: 0, anime: 0 }),
+    solvedDays: lsGet("starpuzzle3_solved_days", {})
+  };
+}
+function saveGuest() {
+  lsSet("starpuzzle3_points", S.points);
+  lsSet("starpuzzle3_streak", S.streak);
+  lsSet("starpuzzle3_last_day", S.lastPuzzleDay);
+  lsSet("starpuzzle3_solves", S.solves);
+  lsSet("starpuzzle3_solved_days", S.solvedDays);
+}
+var S = loadGuest();
+var signedIn = false;
+var userEmail = "";
+// Per-card state for this puzzle-day lives in this browser only (cache).
+// Server caps solvedDays[day] at 9, so a card can never be farmed past the daily total.
+var daySolved = lsGet("starpuzzle3_day_" + KEY, {});
+var revealed = lsGet("starpuzzle3_rev_" + KEY, {});
+var bonusDone = lsGet("starpuzzle3_bonus_" + KEY, false);
+function saveDayCache() {
+  lsSet("starpuzzle3_day_" + KEY, daySolved);
+  lsSet("starpuzzle3_rev_" + KEY, revealed);
+  lsSet("starpuzzle3_bonus_" + KEY, bonusDone);
+}
+
+// ---------- Sigma stages ----------
+function stageFor(p) {
+  if (p >= 100) return "Sigma Legend";
+  if (p >= 60) return "Sigma Star";
+  if (p >= 30) return "Sigma Superfan";
+  if (p >= 10) return "Sigma Fan";
+  return "Sigma Rookie";
+}
+function solvedToday() { return S.solvedDays[KEY] || 0; }
+
+// ---------- Fan-base tag ----------
+// Category solved most. Tie-break: first category alphabetically wins
+// (anime, then drama, then movie). Strict > checks below keep the earlier
+// alphabetical category ahead on ties.
+function fanTag() {
+  var total = (S.solves.movie || 0) + (S.solves.drama || 0) + (S.solves.anime || 0);
+  if (total === 0) return "New Fan";
+  var best = "anime", bestN = S.solves.anime || 0;
+  if ((S.solves.drama || 0) > bestN) { best = "drama"; bestN = S.solves.drama; }
+  if ((S.solves.movie || 0) > bestN) { best = "movie"; bestN = S.solves.movie; }
+  if (best === "movie") return "Movie Fanbase";
+  if (best === "drama") return "Drama Fanbase";
+  return "Anime Fanbase";
+}
+function fanTagEmoji() {
+  var t = fanTag();
+  if (t === "Movie Fanbase") return "🎬";
+  if (t === "Drama Fanbase") return "🎭";
+  if (t === "Anime Fanbase") return "🌸";
+  return "🌱";
+}
+
+// ---------- Auth ----------
+function signIn() {
+  if (!FB.ready) { alert("Sign-in is not ready yet. You can still play as a guest."); return; }
+  var provider = new firebase.auth.GoogleAuthProvider();
+  FB.auth.signInWithPopup(provider).catch(function (err) {
+    alert("Sign-in did not work: " + err.message);
+  });
+}
+function signOut() { if (FB.ready) FB.auth.signOut(); }
+
+// ---------- One mobile, max 2 accounts ----------
+// Dore's rule: at most 2 Google accounts may sign in for points on one
+// mobile. A 3rd Gmail on the same device is blocked from creating a
+// points profile. Reason: people make extra accounts to solve/know the
+// puzzle again with a fresh account.
+// Honest limit: this is a per-browser localStorage check. Clearing
+// browser data or using another browser can bypass it. The Firestore
+// rules (+1/-2 only, max 9 solves/day) still cap any abuse.
+var DEVICE_ACCOUNTS_KEY = "starpuzzle3_devices";
+function loadDeviceAccounts() {
+  var list = lsGet(DEVICE_ACCOUNTS_KEY, []);
+  if (!Array.isArray(list)) return [];
+  return list;
+}
+function saveDeviceAccounts(list) {
+  lsSet(DEVICE_ACCOUNTS_KEY, list);
+}
+// Returns true if this email may sign in for points on this device.
+// The first 2 different emails are bound to this browser; a 3rd is refused.
+function deviceAllows(email) {
+  var list = loadDeviceAccounts();
+  if (list.indexOf(email) !== -1) return true;
+  if (list.length < 2) {
+    list.push(email);
+    saveDeviceAccounts(list);
+    return true;
+  }
+  return false;
+}
+function applyServer(d) {
+  // Server value always wins over localStorage.
+  S.points = d.points || 0;
+  S.streak = d.streak || 0;
+  S.lastPuzzleDay = d.lastPuzzleDay || "";
+  S.solves = d.solves || { movie: 0, drama: 0, anime: 0 };
+  S.solvedDays = d.solvedDays || {};
+  updateStats();
+  renderProfile();
+  renderCards();
+}
+function loadServerDoc() {
+  if (!FB.docRef) return;
+  FB.docRef.get().then(function (doc) {
+    if (!doc.exists) {
+      var fresh = { email: userEmail, points: 0, streak: 0, lastPuzzleDay: "", solves: { movie: 0, drama: 0, anime: 0 }, solvedDays: {} };
+      return FB.docRef.set(fresh).then(function () { applyServer(fresh); });
+    }
+    applyServer(doc.data());
+  }).catch(function (err) {
+    var m = document.getElementById("syncMsg");
+    if (m) m.textContent = "Could not load your saved points. Playing as guest on this device.";
+  });
+}
+function persist(fields) {
+  if (!FB.ready || !FB.docRef) return;
+  FB.docRef.update(fields).catch(function (err) {
+    // A rejected write means our numbers were stale. Server wins: reload and re-render.
+    loadServerDoc();
+    var m = document.getElementById("syncMsg");
+    if (m) m.textContent = "Synced with your saved points. Please try again.";
+  });
+}
+if (FB.ready) {
+  FB.auth.onAuthStateChanged(function (user) {
+    if (user) {
+      signedIn = true;
+      userEmail = user.email || "";
+      if (!deviceAllows(userEmail)) {
+        // 3rd account on this mobile: no points profile. Sign out at once
+        // and show the reason; the visitor keeps playing as a guest.
+        var m = document.getElementById("syncMsg");
+        if (m) m.textContent = "This mobile already has 2 accounts. A 3rd account cannot be created here.";
+        FB.auth.signOut();
+        signedIn = false;
+        userEmail = "";
+        FB.docRef = null;
+        S = loadGuest();
+        updateStats();
+        renderProfile();
+        renderCards();
+        return;
+      }
+      FB.docRef = FB.db.collection("users").doc(user.uid);
+      loadServerDoc();
+    } else {
+      signedIn = false;
+      userEmail = "";
+      FB.docRef = null;
+      S = loadGuest();
+      updateStats();
+      renderProfile();
+      renderCards();
+    }
+    renderProfile();
+  });
+}
+
+// ---------- Render ----------
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function renderProfile() {
+  var box = document.getElementById("profileBox");
+  if (!box) return;
+  if (signedIn) {
+    box.innerHTML = '<div class="email">' + esc(userEmail) + '</div>'
+      + '<div class="fantag">' + fanTagEmoji() + ' ' + esc(fanTag()) + '</div>'
+      + '<div class="stageline">' + esc(stageFor(S.points)) + ' - ' + S.points + ' points - Streak ' + S.streak + '</div>'
+      + '<p style="margin-top:10px"><button class="secondary" id="signOutBtn">Sign out</button></p>';
+    document.getElementById("signOutBtn").addEventListener("click", signOut);
+  } else {
+    box.innerHTML = '<button id="signInBtn">Sign in with Google</button>'
+      + '<p class="guestnote">Not saved - sign in with Google to save your points forever.</p>';
+    document.getElementById("signInBtn").addEventListener("click", signIn);
+  }
+}
+function updateStats() {
+  document.getElementById("points").textContent = S.points;
+  document.getElementById("stage").textContent = stageFor(S.points);
+  document.getElementById("streak").textContent = S.streak;
+  document.getElementById("todayCount").textContent = solvedToday() + "/9";
+}
+function cardKey(cat, tier) { return cat + "-" + tier; }
+function todaysPuzzle(cat, tier) {
+  var i = trendIndex(cat, tier);
+  if (i >= 0) return PUZZLES[cat][tier][i];
+  return PUZZLES[cat][tier][idx];
+}
+function normalize(s) {
+  return s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+// ---------- Category filter tabs ----------
+// currentFilter: 'all' (default) or one of 'movie', 'drama', 'anime'.
+// renderCards() skips every category that does not match, so the filter
+// works the same in the unlocked state and in the 00:00-05:00 locked state.
+var currentFilter = "all";
+// Deep link: ?cat=movie, ?cat=drama or ?cat=anime opens the game already
+// filtered to that category (homepage menu, chips and "Play X Puzzle"
+// buttons link here). Anything else keeps "all".
+(function () {
+  var m = (location.search || "").match(/[?&]cat=(movie|drama|anime)/);
+  if (m) currentFilter = m[1];
+})();
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll("#tabs .tab").forEach(function (b) {
+    b.classList.toggle("active", b.getAttribute("data-filter") === f);
+  });
+  renderCards();
+}
+
+function renderCards() {
+  var wrap = document.getElementById("cards");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  CATS.forEach(function (c) {
+    if (currentFilter !== "all" && currentFilter !== c) return;
+    var h = document.createElement("div");
+    h.className = "catch";
+    h.textContent = CATLABEL[c] + " PUZZLES";
+    wrap.appendChild(h);
+    TIERS.forEach(function (t) {
+      var p = todaysPuzzle(c, t);
+      var k = cardKey(c, t);
+      var card = document.createElement("div");
+      if (LOCKED) {
+        card.className = "card locked";
+        card.innerHTML = '<span class="cat">' + CATLABEL[c] + '</span>'
+          + '<span class="diff diff-' + t + '">' + TIERLABEL[t] + '</span>'
+          + '<h2>???</h2>'
+          + '<div class="show">' + esc(p.show) + '</div>'
+          + '<div class="lockednote">Locked until 5:00 AM.</div>';
+        wrap.appendChild(card);
+        return;
+      }
+      var solved = !!daySolved[k];
+      var rev = revealed[k] || 1;
+      card.className = "card" + (solved ? " solved" : "");
+      var html = "";
+      html += '<span class="cat">' + CATLABEL[c] + '</span>';
+      html += '<span class="diff diff-' + t + '">' + TIERLABEL[t] + '</span>';
+      html += '<h2>' + (solved ? esc(p.char) : '???') + '</h2>';
+      html += '<div class="show">' + esc(p.show) + '</div>';
+      html += '<div class="clue"><b>Clue 1:</b> ' + esc(p.clues[0]) + '</div>';
+      if (rev >= 2) html += '<div class="clue"><b>Clue 2:</b> ' + esc(p.clues[1]) + '</div>';
+      if (rev >= 3) html += '<div class="clue"><b>Clue 3:</b> ' + esc(p.clues[2]) + '</div>';
+      html += '<div class="riddle">' + p.emoji + '</div>';
+      html += '<div class="sil"><b>Silhouette:</b> ' + esc(p.sil) + '</div>';
+      if (!solved) {
+        html += '<div class="btnrow">';
+        if (rev < 2) html += '<button class="secondary" data-act="reveal" data-cat="' + c + '" data-tier="' + t + '" data-n="2">Reveal clue 2</button>';
+        if (rev === 2) html += '<button class="secondary" data-act="reveal" data-cat="' + c + '" data-tier="' + t + '" data-n="3">Reveal clue 3</button>';
+        html += '</div>';
+        html += '<input type="text" id="in-' + k + '" placeholder="Type the character name..." autocomplete="off">';
+        html += '<button data-act="guess" data-cat="' + c + '" data-tier="' + t + '">Submit guess</button>';
+        html += '<div class="feedback" id="fb-' + k + '"></div>';
+      } else {
+        html += '<div class="solvedbox">Solved! +1 point. ';
+        html += '<a href="https://starpuzzleusa.blogspot.com/p/fan-badge.html?char=' + encodeURIComponent(p.char) + '&show=' + encodeURIComponent(p.show) + '">Get your Fan Award Badge</a> | ';
+        html += '<a href="https://starpuzzleusa.blogspot.com/p/fan-frame.html">Fan Frame</a></div>';
+      }
+      card.innerHTML = html;
+      wrap.appendChild(card);
+    });
+  });
+  wrap.querySelectorAll("button[data-act]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var cat = b.getAttribute("data-cat");
+      var tier = b.getAttribute("data-tier");
+      if (b.getAttribute("data-act") === "reveal") {
+        revealed[cardKey(cat, tier)] = parseInt(b.getAttribute("data-n"), 10);
+        saveDayCache();
+        renderCards();
+      } else {
+        submitGuess(cat, tier);
+      }
+    });
+  });
+  wrap.querySelectorAll('input[type="text"]').forEach(function (inp) {
+    inp.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        var parts = inp.id.replace("in-", "").split("-");
+        submitGuess(parts[0], parts[1]);
+      }
+    });
+  });
+}
+
+// ---------- Guesses: +1 correct, -2 wrong ----------
+function submitGuess(cat, tier) {
+  if (LOCKED) return;
+  var k = cardKey(cat, tier);
+  if (daySolved[k]) return;
+  var p = todaysPuzzle(cat, tier);
+  var inp = document.getElementById("in-" + k);
+  var fb = document.getElementById("fb-" + k);
+  var guess = normalize(inp.value);
+  if (!guess) { fb.textContent = "Type a name first!"; fb.className = "feedback bad"; return; }
+  var ok = false;
+  p.answers.forEach(function (a) { if (normalize(a) === guess) ok = true; });
+  if (ok) {
+    solveCard(cat, tier);
+  } else {
+    var before = S.points;
+    S.points = S.points - 2;
+    if (signedIn) {
+      if (S.points !== before) persist({ points: S.points });
+      // Points always drop by 2, so always save.
+    } else {
+      saveGuest();
+    }
+    fb.textContent = "Wrong! -2 points. Try again.";
+    fb.className = "feedback bad";
+    inp.value = "";
+    inp.focus();
+    updateStats();
+  }
+}
+function solveCard(cat, tier) {
+  var k = cardKey(cat, tier);
+  daySolved[k] = true;
+  saveDayCache();
+  // Streak: first solve of this puzzle-day. Streak counts puzzle-days.
+  var newLast = S.lastPuzzleDay, newStreak = S.streak;
+  if (S.lastPuzzleDay !== KEY) {
+    var prev = new Date(pDay); prev.setDate(prev.getDate() - 1);
+    newStreak = (S.lastPuzzleDay === dateKey(prev)) ? S.streak + 1 : 1;
+    newLast = KEY;
+  }
+  S.points = S.points + 1;
+  S.solves[cat] = (S.solves[cat] || 0) + 1;
+  S.solvedDays[KEY] = (S.solvedDays[KEY] || 0) + 1;
+  S.streak = newStreak;
+  S.lastPuzzleDay = newLast;
+  var payload = { points: S.points, solves: S.solves, solvedDays: S.solvedDays, streak: S.streak, lastPuzzleDay: S.lastPuzzleDay };
+  if (signedIn) persist(payload); else saveGuest();
+  updateStats();
+  renderCards();
+  maybeGrantBonus();
+}
+function maybeGrantBonus() {
+  // All 9 solved in one day: +5 bonus, once per puzzle-day.
+  // Gated on this device's own solved cards, so the bonus follows the
+  // device that did the solving.
+  if (Object.keys(daySolved).length === 9 && !bonusDone) {
+    bonusDone = true;
+    saveDayCache();
+    S.points = S.points + 5;
+    if (signedIn) persist({ points: S.points }); else saveGuest();
+    updateStats();
+    var bm = document.getElementById("bonusMsg");
+    if (bm) bm.textContent = "All 9 solved! +5 bonus points.";
+  }
+}
+
+// ---------- How to Play animated demo ----------
+// Auto-plays: one of the 5 steps is highlighted at a time (phone screen
+// and step text stay in sync), then it loops back to step 1.
+var DEMO_STEPS = 5;
+var demoStep = 0;
+function showDemoStep(n) {
+  demoStep = n;
+  var screens = document.querySelectorAll("#demoPhone .screen");
+  var items = document.querySelectorAll("#demoSteps li");
+  screens.forEach(function (s, i) { s.classList.toggle("on", i === n); });
+  items.forEach(function (li, i) { li.classList.toggle("on", i === n); });
+}
+function startDemo() {
+  showDemoStep(0);
+  setInterval(function () { showDemoStep((demoStep + 1) % DEMO_STEPS); }, 2500);
+}
+
+// ---------- Lock countdown to 05:00 ----------
+function pad(n) { return (n < 10 ? "0" : "") + n; }
+function tickLock() {
+  var t = new Date();
+  var target = new Date(t); target.setHours(5, 0, 0, 0);
+  var diff = target - t;
+  if (diff <= 0) { location.reload(); return; }
+  var h = Math.floor(diff / 3600000);
+  var m = Math.floor((diff % 3600000) / 60000);
+  var s = Math.floor((diff % 60000) / 1000);
+  var el = document.getElementById("countdown");
+  if (el) el.textContent = "Next puzzle in " + pad(h) + ":" + pad(m) + ":" + pad(s);
+}
+
+// ---------- Share ----------
+function buildShareText() {
+  var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  var dstr = pDay.getDate() + " " + months[pDay.getMonth()];
+  function mark(cat, tier) { return daySolved[cardKey(cat, tier)] ? "✅" : "❌"; }
+  var parts = [];
+  CATS.forEach(function (c) {
+    parts.push(CATLABEL[c] + " " + mark(c, "easy") + mark(c, "medium") + mark(c, "hard"));
+  });
+  return "StarPuzzle " + dstr + ": " + parts.join(" ") + " - " + S.points + " pts, streak " + S.streak + ", " + stageFor(S.points) + "! Can you beat me? starpuzzleusa.blogspot.com";
+}
+document.getElementById("shareBtn").addEventListener("click", function () {
+  var text = buildShareText();
+  var msg = document.getElementById("shareMsg");
+  function done() { msg.textContent = "Copied! Paste it anywhere to share."; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+  } else {
+    fallbackCopy(text);
+    done();
+  }
+});
+function fallbackCopy(text) {
+  var ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch (e) {}
+  document.body.removeChild(ta);
+}
+
+// ---------- Init ----------
+(function init() {
+  var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function setDateLine() {
+    var suffix = TREND ? " - Trending picks" : " - Set " + (idx + 1) + " of 20";
+    document.getElementById("dateLine").textContent = "Today's puzzles: " + pDay.getDate() + " " + months[pDay.getMonth()] + " " + pDay.getFullYear() + suffix;
+  }
+  setDateLine();
+  document.getElementById("nextLine").textContent = LOCKED ? "New puzzles arrive at 5:00 AM." : "New puzzles tomorrow at 5:00 AM.";
+  updateStats();
+  renderProfile();
+  document.querySelectorAll("#tabs .tab").forEach(function (b) {
+    b.addEventListener("click", function () { setFilter(b.getAttribute("data-filter")); });
+  });
+  startDemo();
+  // Load today's trend set BEFORE the first card render, so players
+  // never see the date-seeded set flash and swap. The fetch is capped
+  // at 2.5s; on any failure the date-seeded set renders as today.
+  loadTrendSet(function () {
+    setDateLine();
+    if (LOCKED) {
+      document.getElementById("lockBox").style.display = "block";
+      setFilter(currentFilter);
+      tickLock();
+      setInterval(tickLock, 1000);
+      var t0 = new Date();
+      var target0 = new Date(t0); target0.setHours(5, 0, 0, 0);
+      setTimeout(function () { location.reload(); }, Math.max(0, target0 - t0));
+    } else {
+      setFilter(currentFilter);
+      maybeGrantBonus();
+    }
+  });
+})();
+</script>
+</body>
+</html>

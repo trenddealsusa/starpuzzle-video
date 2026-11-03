@@ -99,35 +99,6 @@ footer a { color: #2e7d32; }
 </div>
 <p class="syncnote" id="syncMsg"></p>
 
-<div class="howto">
-<h2>How to Play</h2>
-<video src="https://cdn.jsdelivr.net/gh/trenddealsusa/starpuzzle-video@main/media-generation-starpuzzle-how-to-play-0-c75bcb4c-6315-482b-a247-29f3df00a7d0.mp4" controls preload="metadata" playsinline style="width:100%;max-width:560px"></video>
-<p class="videocap">Watch: what StarPuzzle is and how to play.</p>
-<div class="demo">
-<div class="phone" id="demoPhone">
-<div class="screen on"><b>Step 1: Pick a category</b><br><br>🎬 <b>Movie</b><br>🎭 Drama<br>🌸 Anime</div>
-<div class="screen"><b>Step 2: Read the clues</b><br><br>Clue 1: A hero in red and blue who swings between rooftops.<br><br>🕷️🕸️🏙️📷<br><br><i>Silhouette: lean figure, crouched on a rooftop edge.</i></div>
-<div class="screen"><b>Step 3: Type your guess</b><br><br><div class="mockinput">Type the character name...</div><span class="mockbtn">Submit guess</span><br><br><i>Or press Enter.</i></div>
-<div class="screen"><b>Step 4: Points</b><br><br>✅ Correct! <b>+1 point</b><br><br>❌ Wrong! <b>-2 points</b><br><br>Points never go below 0.</div>
-<div class="screen"><b>Step 5: Save your points</b><br><br><span class="mockgoogle">Sign in with Google</span><br><br>Your points are saved forever.<br><br>Guests can play, but points are not saved.</div>
-</div>
-<ol class="demo-steps" id="demoSteps">
-<li>Pick a category: Movie, Drama or Anime.</li>
-<li>Read Clue 1, the emoji riddle and the silhouette hint.</li>
-<li>Type the character name in the box and tap Submit guess (or press Enter).</li>
-<li>Correct answer: +1 point. Wrong answer: -2 points.</li>
-<li>Sign in with Google to save your points forever. Guests can play, but points are not saved.</li>
-</ol>
-</div>
-<ul class="rules">
-<li>New puzzles every day at 5:00 AM.</li>
-<li>Yesterday's puzzles stay playable until midnight.</li>
-<li>All 9 solved: +5 bonus points.</li>
-<li>Points never reset.</li>
-<li>Max 2 Google accounts per mobile.</li>
-</ul>
-</div>
-
 <p class="date-line" id="dateLine"></p>
 <p class="nextline" id="nextLine"></p>
 
@@ -149,6 +120,35 @@ footer a { color: #2e7d32; }
 <div class="sharebox">
 <button id="shareBtn">Share my result</button>
 <p id="shareMsg" style="margin-top:8px;color:#538d4e;"></p>
+</div>
+
+<div class="howto">
+<h2>How to Play</h2>
+<video src="https://cdn.jsdelivr.net/gh/trenddealsusa/starpuzzle-video@main/media-generation-starpuzzle-how-to-play-0-c75bcb4c-6315-482b-a247-29f3df00a7d0.mp4" controls preload="metadata" playsinline style="width:100%;max-width:560px"></video>
+<p class="videocap">Watch: what StarPuzzle is and how to play.</p>
+<div class="demo">
+<div class="phone" id="demoPhone">
+<div class="screen on"><b>Step 1: Pick a category</b><br><br>🎬 <b>Movie</b><br>🎭 Drama<br>🌸 Anime</div>
+<div class="screen"><b>Step 2: Read the clues</b><br><br>Clue 1: A hero in red and blue who swings between rooftops.<br><br>🕷️🕸️🏙️📷<br><br><i>Silhouette: lean figure, crouched on a rooftop edge.</i></div>
+<div class="screen"><b>Step 3: Type your guess</b><br><br><div class="mockinput">Type the character name...</div><span class="mockbtn">Submit guess</span><br><br><i>Or press Enter.</i></div>
+<div class="screen"><b>Step 4: Points</b><br><br>✅ Correct! <b>+1 point</b><br><br>❌ Wrong! <b>-2 points</b><br><br>Wrong answers can take you below 0.</div>
+<div class="screen"><b>Step 5: Save your points</b><br><br><span class="mockgoogle">Sign in with Google</span><br><br>Your points are saved forever.<br><br>Guests can play, but points are not saved.</div>
+</div>
+<ol class="demo-steps" id="demoSteps">
+<li>Pick a category: Movie, Drama or Anime.</li>
+<li>Read Clue 1, the emoji riddle and the silhouette hint.</li>
+<li>Type the character name in the box and tap Submit guess (or press Enter).</li>
+<li>Correct answer: +1 point. Wrong answer: -2 points.</li>
+<li>Sign in with Google to save your points forever. Guests can play, but points are not saved.</li>
+</ol>
+</div>
+<ul class="rules">
+<li>New puzzles every day at 5:00 AM.</li>
+<li>Yesterday's puzzles stay playable until midnight.</li>
+<li>All 9 solved: +5 bonus points.</li>
+<li>Points never reset.</li>
+<li>Max 2 Google accounts per mobile.</li>
+</ul>
 </div>
 
 <footer>
@@ -1106,7 +1106,7 @@ function fallbackCopy(text) {
   updateStats();
   renderProfile();
   document.querySelectorAll("#tabs .tab").forEach(function (b) {
-    b.addEventListener("click", function () { setFilter(b.getAttribute("data-filter")); });
+    b.addEventListener("click", function () { setFilter(b.getAttribute("data-filter")); var c = document.getElementById("cards"); if (c && c.scrollIntoView) c.scrollIntoView(); });
   });
   startDemo();
   // Load today's trend set BEFORE the first card render, so players
